@@ -62,6 +62,8 @@ class Bot(discord.Client):
         await self.process_interaction(interaction)
 
     async def on_ready(self) -> None:
+        if self.user is None:
+            return
         logger.success(f"Logged in as {self.user.name}#"
                        f"{self.user.discriminator} (id: {self.user.id})")
 

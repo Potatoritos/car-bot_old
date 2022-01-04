@@ -179,8 +179,12 @@ class TextContext(Context):
         )
 
     async def edit_response(self, **kwargs) -> None:
+        if self._response is None:
+            raise ContextError("Command has not been responded to yet")
         await self._response.edit(**kwargs)
 
     async def delete_response(self) -> None:
+        if self._response is None:
+            raise ContextError("Command has not been responded to yet")
         await self._response.delete()
 

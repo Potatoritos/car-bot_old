@@ -7,6 +7,7 @@ from enum import Enum
 
 import config
 from .argument import Argument, FromChoices, InRange
+from .check import Check, RequiresPermissions, GuildOnly, SpecificGuildOnly
 from .enums import CommandType, OptionType
 from .exception import CommandError, CogError
 from .tokenizer import Tokenizer
@@ -43,13 +44,13 @@ class Command:
         self.max_concurrency = max_concurrency
         self.hidden = hidden
 
-        self.required_guild: Optional[int] = None
-        if hasattr(func, '_car_required_guild'):
-            self.required_guild = func._car_required_guild # type: ignore
+        self.guild_id: Optional[int] = None
+        if hasattr(func, '_car_guild_id'):
+            self.guild_id = func._car_guild_id # type: ignore[attr-defined]
 
-        self.checks: list[Callable[[Context], None]] = []
-        if hasattr(func, '_car_command_checks'):
-            self.checks = func._car_command_checks # type: ignore
+        self.checks: list[Check] = []
+        if hasattr(func, '_car_checks'):
+            self.checks = func._car_checks # type: ignore[attr-defined]
 
         self.parent_cog: Optional['Cog'] = None # set by Cog
         self.concurrency: int = 0
@@ -93,10 +94,15 @@ class Command:
 
         return "\n\n".join(items)
 
+    def add_check(self, check: 'Check') -> None:
+        self.checks.append(check)
+        if isinstance(check, SpecificGuildOnly):
+            self.guild_id = check.guild_id
+
     # raises CheckError if checks fail
-    def run_checks(self, ctx: 'Context') -> None:
+    async def run_checks(self, ctx: 'Context') -> None:
         for check in self.checks:
-            check(ctx)
+            await check.check(ctx)
 
     def run(self, ctx: 'Context') -> None:
         asyncio.create_task(self._run(ctx))

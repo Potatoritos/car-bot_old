@@ -1,4 +1,4 @@
-from typing import Type, Union
+from typing import Any, Type, Union
 import json
 import requests
 import discord
@@ -147,9 +147,9 @@ class CogHandler:
         else:
             await ctx.send(embed=embed)
 
-    async def run_command_slash(self, ctx: SlashContext, data: dict) -> None:
+    async def run_command_slash(self, ctx: SlashContext, data: dict[str, Any]
+                                ) -> None:
         names: list[str] = []
-        data: dict[str, Any] = data
         options: list[dict] = []
 
         while data['type'] == 1 or data['type'] == 2:
@@ -167,7 +167,7 @@ class CogHandler:
             return
 
         try:
-            cmd.run_checks(ctx)
+            await cmd.run_checks(ctx)
         except CheckError as e:
             await self.handle_error(ctx, cmd, e)
             return
@@ -196,7 +196,7 @@ class CogHandler:
     async def run_command_text(self, ctx: TextContext, cmd: TextCommand,
                                content: str) -> None:
         try:
-            cmd.run_checks(ctx)
+            await cmd.run_checks(ctx)
         except CheckError as e:
             await self.handle_error(ctx, cmd, e)
             return

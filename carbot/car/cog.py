@@ -1,6 +1,5 @@
-from typing import Type, Optional
+from typing import Callable, Optional, Type
 from .command import Command, TextCommand, SlashCommand, MixedCommandContainer
-# from .check import check
 import inspect
 
 
@@ -9,7 +8,7 @@ __all__ = [
 ]
 
 class Cog:
-    # global_checks: tuple[Check] = ()
+    global_checks: tuple[Callable, ...] = ()
     global_category: Optional[str] = None
 
     def __init__(self):
@@ -28,6 +27,10 @@ class Cog:
             cmd.category = self.global_category
 
         cmd.parent_cog = self
+
+        for check_deco in self.global_checks:
+            check = check_deco()
+            cmd.add_check(check)
 
         if isinstance(cmd, TextCommand):
             self.text_commands.append(cmd)
