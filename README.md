@@ -1,39 +1,45 @@
-
-# car-bot
-
-my discord bot!
-
-WIP
-
-# Requirements
-
-python 3.9
+my discord bot! (wip)
 
 # Running
 
+Python version must be >=3.9
+
 1. Set up virtual environment
 
-run `python -m venv venv`
+```bash
+# Create venv
+python -m venv venv
 
-to activate venv, run `source venv/bin/activate` (windows: `venv\Scripts\activate.bat`)
+# Activate venv
+source venv/bin/activate
+```
 
 2. Install dependencies
 
-run `pip install -U -r requirements.txt`
+```bash
+python -m pip install -U -r requirements.txt
+```
 
 3. Build stuff
 
-run `build_carpp.sh`
+```bash
+chmod +x build_carpp.sh
+./build_carpp.sh
+```
 
-(if this doesn't work (or if you are on windows), run `python build_carpp.py build`, open the `build` directory, find the .so or .dll file, then move this file into the `carbot` folder)
+(if this doesn't work, run `python build_carpp.py build`, open the `build` directory, find the .so or .dll file, then move this file into the `carbot` folder)
 
 4. Set up config
 
-copy `config_copy.py` in the `carbot` directory and rename the copied file to `config.py`. Then, edit the settings in `config.py`
+```bash
+cp carbot/config_copy.py carbot/config.py
+
+# edit carbot/config.py
+$EDITOR carbot/config.py
+```
 
 5. Run
-
-run `./run.sh`
-
-(if this doesn't work, run `python carbot.py` in the `carbot` directory)
-
+```
+chmod +x run.sh
+./run.sh
+```
