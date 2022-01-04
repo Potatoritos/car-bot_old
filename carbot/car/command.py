@@ -1,0 +1,240 @@
+from typing import (
+    Callable, Optional, Any, TYPE_CHECKING, get_type_hints, Awaitable, Union
+)
+import inspect
+import asyncio
+from enum import Enum
+
+import config
+from .argument import Argument, FromChoices, InRange
+from .enums import CommandType, OptionType
+from .exception import CommandError, CogError
+from .tokenizer import Tokenizer
+from .util import generate_repr
+if TYPE_CHECKING:
+    from .cog import Cog
+    from .context import Context
+
+__all__ = [
+    'Command',
+    'TextCommand',
+    'SlashCommand',
+    'text_command',
+    'slash_command',
+    'mixed_command',
+    'slash_command_group'
+]
+
+class Command:
+    def __init__(
+        self,
+        *,
+        name: str,
+        func: Callable[..., Awaitable[Any]],
+        desc: str = "No description provided",
+        category: Optional[str] = None,
+        max_concurrency: Optional[int] = None,
+        hidden: bool = False
+    ):
+        self.name = name
+        self.func = func
+        self.desc = desc
+        self.category = category
+        self.max_concurrency = max_concurrency
+        self.hidden = hidden
+
+        self.required_guild: Optional[int] = None
+        if hasattr(func, '_car_required_guild'):
+            self.required_guild = func._car_required_guild # type: ignore
+
+        self.checks: list[Callable[[Context], None]] = []
+        if hasattr(func, '_car_command_checks'):
+            self.checks = func._car_command_checks # type: ignore
+
+        self.parent_cog: Optional['Cog'] = None # set by Cog
+        self.concurrency: int = 0
+
+        self.args: dict[str, Argument] = {}
+        hints = get_type_hints(self.func, include_extras=True)
+
+        for name, param in inspect.signature(func).parameters.items():
+            if name == 'self' or name == 'ctx':
+                continue
+            self.args[name] = Argument.from_hint(hints[name], name=name,
+                                                 default=param.default)
+
+    def outline(self, *, ctx_args: dict[str, Any] = {}, prefix: str = "/",
+                    highlight: Optional[str] = None) -> str:
+        outline = ["``", prefix, self.name]
+
+        for i, arg in enumerate(self.args.values()):
+            label = str(ctx_args.get(arg.name, arg.label))
+            if label == "":
+                label = " "
+
+            if highlight is not None and arg.name == highlight:
+                label = f"``**__`{label}`__**"
+                if i != len(self.args)-1:
+                    label += "``"
+            elif i == len(self.args)-1:
+                label += '``'
+
+            outline.append(" ")
+            outline.append(label)
+
+        return "".join(outline)
+
+    def usage(self, *, prefix: str = "/") -> str:
+        items: list[str] = []
+        items.append(self.outline(prefix=prefix))
+
+        for arg in self.args.values():
+            items.append(arg.usage_label(slash=False))
+
+        return "\n\n".join(items)
+
+    # raises CheckError if checks fail
+    def run_checks(self, ctx: 'Context') -> None:
+        for check in self.checks:
+            check(ctx)
+
+    def run(self, ctx: 'Context') -> None:
+        asyncio.create_task(self._run(ctx))
+
+    async def _run(self, ctx: 'Context'):
+        if self.max_concurrency is not None and \
+                self.concurrency >= self.max_concurrency:
+            raise CommandError("Maximum concurrency reached!")
+
+        if self.parent_cog is None:
+            raise CogError("This command has not been initialized properly!")
+
+        self.concurrency += 1
+        await self.func(self.parent_cog, ctx, **ctx.args)
+        self.concurrency -= 1
+
+
+class SlashCommand(Command):
+    def __init__(
+        self,
+        *,
+        name: str,
+        func: Callable[..., Awaitable[Any]],
+        desc: str = "No description provided",
+        category: Optional[str] = None,
+        max_concurrency: Optional[int] = None,
+        hidden: bool = False,
+    ):
+        super().__init__(name=name, func=func, desc=desc, category=category,
+                         max_concurrency=max_concurrency, hidden=hidden)
+        self.parent_cog: 'Cog' # = None # set by CogHandler
+        self.subcommands: list[SlashCommand] = [] # also set by CogHandler
+
+    def __repr__(self) -> str:
+        return generate_repr("SlashCommand", (
+            ('name', self.name),
+            ('category', self.category),
+            ('desc', self.desc),
+            ('max_concurrency', self.max_concurrency),
+            ('hidden', self.hidden)
+        ))
+
+    def has_parent(self) -> bool:
+        return self.name.find(' ') != -1
+
+    @property
+    def parent_name(self) -> str:
+        idx = self.name.rfind(' ')
+        assert idx != -1
+        return self.name[:idx]
+
+    @property
+    def rightmost_name(self) -> str:
+        return self.name[self.name.rfind(' ')+1:]
+
+    def json(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            'name': self.rightmost_name,
+            'description': self.desc
+        }
+        if self.has_parent():
+            data['type'] = OptionType.SUB_COMMAND_GROUP
+        else:
+            if config.DEBUG:
+                data['guild_id'] = config.DEBUG_GUILD_ID
+
+            data['type'] = CommandType.CHAT_INPUT
+            data['application_id'] = config.APPLICATION_ID
+
+        data['options'] = []
+        if len(self.subcommands) == 0:
+            data['type'] = OptionType.SUB_COMMAND
+            for arg in self.args.values():
+                data['options'].append(arg.json())
+
+        return data
+
+
+class TextCommand(Command):
+    def __init__(
+        self,
+        *,
+        name: str,
+        func: Callable[..., Awaitable[Any]],
+        desc: str = "No description provided",
+        aliases: tuple[str, ...] = (),
+        category: Optional[str] = None,
+        collect_last_arg: bool = False,
+        max_concurrency: Optional[int] = None,
+        hidden: bool = False
+    ):
+        super().__init__(name=name, func=func, desc=desc, category=category,
+                         max_concurrency=max_concurrency, hidden=hidden)
+        self.aliases = aliases
+        self.collect_last_arg = collect_last_arg
+
+    def __repr__(self) -> str:
+        return generate_repr("TextCommand", (
+            ("name", self.name),
+            ("category", self.category),
+            ("desc", self.desc),
+            ("aliases", self.aliases),
+            ("max_concurrency", self.max_concurrency),
+            ("collect_last_arg", self.collect_last_arg),
+            ("hidden", self.hidden)
+        ))
+
+
+class MixedCommandContainer:
+    def __init__(
+        self,
+        *,
+        slash_command: SlashCommand,
+        text_command: TextCommand
+    ):
+        self.slash_command = slash_command
+        self.text_command = text_command
+
+def mixed_command(text_name: str, slash_name: str, **kwargs):
+    def decorator(func):
+        return MixedCommandContainer(
+            slash_command=SlashCommand(name=slash_name, func=func, **kwargs),
+            text_command=TextCommand(name=text_name, func=func, **kwargs)
+        )
+    return decorator
+
+def text_command(name: Optional[str] = None, **kwargs):
+    def decorator(func):
+        return TextCommand(name=name or func.__name__, func=func, **kwargs)
+    return decorator
+
+def slash_command(name: str, **kwargs):
+    def decorator(func):
+        return SlashCommand(name=name, func=func, **kwargs)
+    return decorator
+
+def slash_command_group(name: str, desc: str = "Command Group"):
+    def decorator(func):
+        return SlashCommand(func=func, name=name, desc=desc, hidden=True)
+    return decorator
+

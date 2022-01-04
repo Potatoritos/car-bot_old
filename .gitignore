@@ -1,0 +1,12 @@
+config.py
+
+__pycache__/
+*.py[cod]
+
+*.db
+*.mp3
+
+*.so
+*.dll
+build/
+
