@@ -31,14 +31,14 @@ class Command:
         *,
         name: str,
         func: Callable[..., Awaitable[Any]],
-        desc: str = "No description provided",
+        desc: Optional[str] = None,
         category: Optional[str] = None,
         max_concurrency: Optional[int] = None,
         hidden: bool = False
     ):
         self.name = name
         self.func = func
-        self.desc = desc
+        self.desc: str = desc or inspect.getdoc(func) or "No description"
         self.category = category
         self.max_concurrency = max_concurrency
         self.hidden = hidden
@@ -120,7 +120,7 @@ class SlashCommand(Command):
         *,
         name: str,
         func: Callable[..., Awaitable[Any]],
-        desc: str = "No description provided",
+        desc: Optional[str] = None,
         category: Optional[str] = None,
         max_concurrency: Optional[int] = None,
         hidden: bool = False,
@@ -181,7 +181,7 @@ class TextCommand(Command):
         *,
         name: str,
         func: Callable[..., Awaitable[Any]],
-        desc: str = "No description provided",
+        desc: Optional[str] = None,
         aliases: tuple[str, ...] = (),
         category: Optional[str] = None,
         collect_last_arg: bool = False,
@@ -193,7 +193,7 @@ class TextCommand(Command):
         self.aliases = aliases
         self.collect_last_arg = collect_last_arg
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str: 
         return generate_repr("TextCommand", (
             ("name", self.name),
             ("category", self.category),

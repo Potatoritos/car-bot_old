@@ -42,6 +42,11 @@ class TestCog(car.Cog):
         e: discord.Role,
         f: discord.TextChannel
     ):
+        """
+        Line 1
+        Line 2
+        Line 3
+        """
         logger.debug(f"a: {a}\n b: {b}\n c: {c}\n d: {d}\n e: {e}\n f: {f}")
 
     @car.mixed_command(text_name="b", slash_name="b")
@@ -57,6 +62,7 @@ class TestCog(car.Cog):
         await ctx.edit_response(content="done")
 
     @car.mixed_command(text_name="boing", slash_name="boing")
+    @car.requires_permissions(administrator=True)
     @car.guild_must_be_id(495327409487478785)
     async def boing(
         self,
@@ -67,6 +73,7 @@ class TestCog(car.Cog):
         arg4: A[bool, "asdasd *sdfsdf*"],
         arg5: A[Optional[float], "asdskgfjglkdgj", car.InRange(upper=72.7)] = 69
     ):
+        """Command description here"""
         logger.debug(ctx.args)
 
     @car.text_command()
