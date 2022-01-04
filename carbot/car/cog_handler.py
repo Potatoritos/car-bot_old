@@ -12,7 +12,7 @@ from .converter import convert
 from .exception import (
     CogError, CheckError, CommandError, ArgumentError, CarException
 )
-from .tokenizer import Tokenizer
+from .tokenizer import Tokenizer, filter_kwargs
 
 
 __all__ = [
@@ -201,19 +201,24 @@ class CogHandler:
             await self.handle_error(ctx, cmd, e)
             return
 
-        tok = Tokenizer(content)
         try:
+            content, kwargs = filter_kwargs(content)
+            tok = Tokenizer(content)
+
             for i, arg in enumerate(cmd.args.values()):
-                if tok.is_eof():
-                    if arg.required:
+                if arg.name in kwargs:
+                    ctx.args[arg.name] = kwargs[arg.name]
+                else:
+                    if tok.is_eof() and arg.required:
                         raise ArgumentError("I am missing this argument!",
                                             arg.name)
-                    break
-                try:
+                        break
+
                     if cmd.collect_last_arg and i == len(cmd.args)-1:
                         ctx.args[arg.name] = tok.get_remaining()
                     else:
                         ctx.args[arg.name] = tok.next_token()
+                try:
                     ctx.args[arg.name] = convert(arg, ctx, ctx.args[arg.name])
                 except ArgumentError as e:
                     e.highlight = arg.name
