@@ -17,7 +17,7 @@ run `python -m venv venv`
 
 to activate venv, run `source venv/bin/activate` (windows: `venv\Scripts\activate.bat`)
 
-2. install dependencies
+2. install dependencies (haven't made requirements.txt yet lol)
 
 run `pip install -U -r requirements.txt`
 
@@ -34,5 +34,6 @@ copy `config_copy.py` in the `carbot` directory and rename the copied file to `c
 5. run
 
 run `./run.sh`
-in the `carbot` directory, run `python carbot.py`
+
+or: in the `carbot` directory, run `python carbot.py`
 
