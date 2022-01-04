@@ -73,7 +73,6 @@ class Tokenizer:
     def reset(self) -> None:
         self.index = 0
 
-
 def filter_kwargs(content: str) -> tuple[str, dict[str, str]]:
     spl = []
     kwargs: dict[str, str] = {}
