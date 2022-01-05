@@ -1,6 +1,8 @@
-from typing import Callable, Optional, Type
+from typing import Callable, Optional, Type, TYPE_CHECKING
 from .command import Command, TextCommand, SlashCommand, MixedCommandContainer
 import inspect
+if TYPE_CHECKING:
+    from .bot import Bot
 
 
 __all__ = [
@@ -9,11 +11,12 @@ __all__ = [
 
 class Cog:
     global_checks: tuple[Callable, ...] = ()
-    global_category: Optional[str] = None
+    global_category: str = "Uncategorized"
 
-    def __init__(self):
+    def __init__(self, bot: 'Bot'):
         self.text_commands: list[TextCommand] = []
         self.slash_commands: list[SlashCommand] = []
+        self.bot = bot
 
         for _, obj in inspect.getmembers(self):
             if isinstance(obj, Command):
@@ -23,7 +26,7 @@ class Cog:
                 self._add_command(obj.slash_command)
 
     def _add_command(self, cmd: Command):
-        if cmd.category is None:
+        if cmd.category == "Uncategorized":
             cmd.category = self.global_category
 
         cmd.parent_cog = self

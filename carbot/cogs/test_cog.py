@@ -8,6 +8,7 @@ import car
 
 class TestCog(car.Cog):
     global_category = "test category"
+    global_checks = ()
 
     @car.slash_command_group(name="a")
     async def a(self, ctx):
@@ -71,7 +72,7 @@ class TestCog(car.Cog):
         arg2: str,
         arg3: A[float, "this is a description", car.FromChoices(("a",2.3), ("b",6.9), ("c",-2))],
         arg4: A[bool, "asdasd *sdfsdf*"],
-        arg5: A[Optional[float], "asdskgfjglkdgj", car.InRange(upper=72.7)] = 69
+        arg5: A[Optional[float], "asdsk gfjglkdgj", car.InRange(upper=72.7)] = 69
     ):
         """Command description here"""
         logger.debug(ctx.args)
@@ -101,4 +102,22 @@ class TestCog(car.Cog):
     @car.requires_permissions(attach_files=True)
     async def permtest(self, ctx):
         await ctx.respond("yes")
+
+    @car.slash_command_group(name="breaktest")
+    async def breaktest(self, ctx): pass
+
+    @car.slash_command_group(name="breaktest breaktest2")
+    async def breaktest2(self, ctx): pass
+
+    @car.slash_command(name="breaktest breaktest2 breaktest3")
+    async def breaktest3(self, ctx): pass
+
+    @car.slash_command(name="breaktest breaktest2 breaktest4")
+    async def breaktest4(self, ctx): pass
+
+    @car.slash_command(name="breaktest breaktest2 breaktest5")
+    async def breaktest5(self, ctx): pass
+
+    @car.slash_command(name="breaktest breaktest2 breaktest6")
+    async def breaktest6(self, ctx): pass
 

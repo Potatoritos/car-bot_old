@@ -33,7 +33,7 @@ class Command:
         name: str,
         func: Callable[..., Awaitable[Any]],
         desc: Optional[str] = None,
-        category: Optional[str] = None,
+        category: str = "Uncategorized",
         max_concurrency: Optional[int] = None,
         hidden: bool = False
     ):
@@ -104,10 +104,13 @@ class Command:
         for check in self.checks:
             await check.check(ctx)
 
-    def run(self, ctx: 'Context') -> None:
-        asyncio.create_task(self._run(ctx))
+    # def run(self, ctx: 'Context') -> None:
+        # try:
+            # asyncio.create_task(self._run(ctx))
+        # except Exception as e:
+            # print(e)
 
-    async def _run(self, ctx: 'Context'):
+    async def run(self, ctx: 'Context'):
         if self.max_concurrency is not None and \
                 self.concurrency >= self.max_concurrency:
             raise CommandError("Maximum concurrency reached!")
@@ -127,7 +130,7 @@ class SlashCommand(Command):
         name: str,
         func: Callable[..., Awaitable[Any]],
         desc: Optional[str] = None,
-        category: Optional[str] = None,
+        category: str = "Uncategorized",
         max_concurrency: Optional[int] = None,
         hidden: bool = False,
     ):
@@ -189,7 +192,7 @@ class TextCommand(Command):
         func: Callable[..., Awaitable[Any]],
         desc: Optional[str] = None,
         aliases: tuple[str, ...] = (),
-        category: Optional[str] = None,
+        category: str = "Uncategorized",
         collect_last_arg: bool = False,
         max_concurrency: Optional[int] = None,
         hidden: bool = False
@@ -221,11 +224,13 @@ class MixedCommandContainer:
         self.slash_command = slash_command
         self.text_command = text_command
 
-def mixed_command(text_name: str, slash_name: str, **kwargs):
+def mixed_command(text_name: str, slash_name: str,
+                  aliases: tuple[str, ...] = (), **kwargs):
     def decorator(func):
         return MixedCommandContainer(
             slash_command=SlashCommand(name=slash_name, func=func, **kwargs),
-            text_command=TextCommand(name=text_name, func=func, **kwargs)
+            text_command=TextCommand(name=text_name, func=func,
+                                     aliases=aliases, **kwargs)
         )
     return decorator
 

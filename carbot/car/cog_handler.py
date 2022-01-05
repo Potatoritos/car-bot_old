@@ -1,4 +1,4 @@
-from typing import Any, Type, Union
+from typing import Any, Type, Union, TYPE_CHECKING
 import json
 import requests
 import discord
@@ -13,7 +13,8 @@ from .exception import (
     CogError, CheckError, CommandError, ArgumentError, CarException
 )
 from .tokenizer import Tokenizer, filter_kwargs
-
+if TYPE_CHECKING:
+    from .bot import Bot
 
 __all__ = [
     'CogHandler'
@@ -21,12 +22,14 @@ __all__ = [
 
 
 class CogHandler:
-    def __init__(self):
+    def __init__(self, bot: 'Bot'):
         self.cog_classes: dict[str, Type[Cog]] = {}
         self.cogs: dict[str, Cog] = {}
         self.slash_commands: dict[str, SlashCommand] = {}
         self.text_commands: dict[str, TextCommand] = {}
         self.text_aliases: dict[str, TextCommand] = {}
+
+        self.bot = bot
 
     def add_cog_class(self, cog: Type[Cog]) -> None:
         if cog.__name__ in self.cog_classes:
@@ -42,7 +45,7 @@ class CogHandler:
         if cog_name in self.cogs:
             raise CogError(f"Cog {cog_name} is already loaded!")
 
-        self.cogs[cog_name] = self.cog_classes[cog_name]()
+        self.cogs[cog_name] = self.cog_classes[cog_name](self.bot)
 
         for text_cmd in self.cogs[cog_name].text_commands:
             self._load_text_command(text_cmd)
@@ -172,12 +175,17 @@ class CogHandler:
             await self.handle_error(ctx, cmd, e)
             return
 
-        print(options)
         args: dict[str, Any] = {opt['name']: opt['value'] for opt in options
                                 if 'value' in opt}
-
         try:
             for arg in cmd.args.values():
+                if arg.name not in args:
+                    if arg.required:
+                        raise ArgumentError("I am missing this argument!",
+                                            arg.name)
+                        break
+                    else:
+                        continue
                 try:
                     ctx.args[arg.name] = args[arg.name]
                     if not isinstance(ctx.args[arg.name], arg.arg_type):
@@ -188,8 +196,7 @@ class CogHandler:
                                  "updated the command list yet)")
                     return
 
-            # await ctx.interaction.response.defer()
-            cmd.run(ctx)
+            await cmd.run(ctx)
         except CarException as e:
             await self.handle_error(ctx, cmd, e)
 
@@ -209,10 +216,12 @@ class CogHandler:
                 if arg.name in kwargs:
                     ctx.args[arg.name] = kwargs[arg.name]
                 else:
-                    if tok.is_eof() and arg.required:
-                        raise ArgumentError("I am missing this argument!",
-                                            arg.name)
-                        break
+                    if tok.is_eof():
+                        if arg.required:
+                            raise ArgumentError("I am missing this argument!",
+                                                arg.name)
+                        else:
+                            continue
 
                     if cmd.collect_last_arg and i == len(cmd.args)-1:
                         ctx.args[arg.name] = tok.get_remaining()
@@ -224,7 +233,7 @@ class CogHandler:
                     e.highlight = arg.name
                     raise e
 
-            cmd.run(ctx)
+            await cmd.run(ctx)
         except CarException as e:
             await self.handle_error(ctx, cmd, e)
 

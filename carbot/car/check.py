@@ -23,8 +23,8 @@ __all__ = [
 
 
 class Check(metaclass=ABCMeta):
-    EMOTE_YES = ":green_circle:"
-    EMOTE_NO = ":x:"
+    EMOTE_YES = "`[✓]`"
+    EMOTE_NO = "`[✕]`"
 
     def emote(self, condition) -> str:
         return self.EMOTE_YES if condition else self.EMOTE_NO
@@ -35,7 +35,7 @@ class Check(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def description(self, ctx: 'Context') -> str:
+    async def desc(self, ctx: 'Context') -> str:
         pass
 
     def modify_func(self, func: Callable[..., Awaitable[Any]]) -> None:
@@ -65,11 +65,11 @@ class RequiresPermissions(Check):
                              "Missing permissions:\n"
                              + '\n'.join(f"`{perm}`" for perm in missing))
 
-    async def description(self, ctx: 'Context') -> str:
+    async def desc(self, ctx: 'Context') -> str:
         missing = self.get_missing(ctx)
         return (
-            f"{self.emote(len(missing) == 0)} Requires permissions:\n"
-            + '\n'.join((f"`{p}`" + " (missing)" if p in missing else "")
+            f"{self.emote(len(missing) == 0)} requires permissions: "
+            + ', '.join((p + (" (missing)" if p in missing else ""))
                         for p in self.permissions)
         )
 
@@ -79,7 +79,7 @@ class GuildOnly(Check):
         if ctx.is_dm():
             raise CheckError("This command is only available in servers!")
 
-    async def description(self, ctx: 'Context') -> str:
+    async def desc(self, ctx: 'Context') -> str:
         return f"{self.emote(ctx.is_dm())} Must be used in a server"
 
 
@@ -93,9 +93,11 @@ class SpecificGuildOnly(Check):
         elif ctx.guild.id != self.guild_id:
             raise CheckError("This command is not available in this server!")
 
-    async def description(self, ctx: 'Context') -> str:
-        return self.emote((not ctx.is_dm()) or ctx.guild.id == self.guild_id) \
-            + " Is only available in certain servers"
+    async def desc(self, ctx: 'Context') -> str:
+        if ctx.is_dm() or ctx.guild.id != self.guild_id:
+            return f"{self.EMOTE_NO} is not available in this server"
+        else:
+            return f"{self.EMOTE_YES} is available in this server"
 
     def modify_func(self, func: Callable[..., Awaitable[Any]]):
         func._car_guild_id = self.guild_id # type: ignore[attr-defined]

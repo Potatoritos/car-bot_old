@@ -1,6 +1,7 @@
-from typing import Optional, Union, Any, Type, overload, get_args
+from typing import Optional, Union, Any, Type, overload, get_args, get_origin
 import inspect
 import discord
+from loguru import logger
 
 from .enums import OptionType
 from .util import join_last
@@ -50,9 +51,12 @@ class Argument:
         if isinstance(hint, type):
             return cls(arg_type=hint, **kwargs)
 
-        if hint is Union: # if hint is a typing.Optional[type]
+        if get_origin(hint) is Union:
             assert type(None) in get_args(hint) and len(get_args(hint)) == 2
             assert kwargs['default'] is not inspect.Parameter.empty
+            if not isinstance(get_args(hint)[0], type):
+                return cls.from_hint(get_args(hint)[0], **kwargs)
+
             return cls(arg_type=get_args(hint)[0], required=False, **kwargs)
         else: # if hint is a typing.Annotated[...]
             hint_args = get_args(hint)
@@ -94,7 +98,7 @@ class Argument:
             type_descs = {
                 int: "an integer",
                 float: "a number",
-                str: "text",
+                str: "a string",
                 bool: f"{code}yes{code} or {code}no{code}",
                 discord.Member: "a member",
                 discord.TextChannel: "a text channel",

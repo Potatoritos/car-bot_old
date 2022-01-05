@@ -18,7 +18,7 @@ class Bot(discord.Client):
         intents.members = True
         super().__init__(intents=intents, *args, **kwargs)
 
-        self.cog_handler = CogHandler()
+        self.cog_handler = CogHandler(self)
 
     async def process_message(self, msg: discord.Message) -> None:
         if not isinstance(msg.channel, (discord.TextChannel,
@@ -46,7 +46,10 @@ class Bot(discord.Client):
 
         content = msg.content[idx:]
         ctx = TextContext.from_message(self, msg, prefix)
-        await self.cog_handler.run_command_text(ctx, cmd, content)
+
+        # await self.cog_handler.run_command_text(ctx, cmd, content)
+        asyncio.create_task(self.cog_handler.run_command_text(ctx, cmd,
+                                                              content))
 
     async def on_message(self, msg: discord.Message) -> None:
         await self.process_message(msg)
@@ -54,9 +57,10 @@ class Bot(discord.Client):
     async def process_interaction(self, interaction: discord.Interaction
                                   ) -> None:
         data = interaction.data
-        if data['type'] == CommandType.CHAT_INPUT:
+        if data['type'] == CommandType.CHAT_INPUT: # type: ignore[index,typeddict-item]
             ctx = SlashContext.from_interaction(self, interaction)
-            await self.cog_handler.run_command_slash(ctx, data)
+            # await self.cog_handler.run_command_slash(ctx, data) # type: ignore[arg-type]
+            asyncio.create_task(self.cog_handler.run_command_slash(ctx, data)) # type: ignore[arg-type]
 
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         await self.process_interaction(interaction)
