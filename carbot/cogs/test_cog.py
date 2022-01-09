@@ -7,8 +7,8 @@ import car
 
 
 class TestCog(car.Cog):
-    global_category = "test category"
-    global_checks = ()
+    category = "test category"
+    checks = ()
 
     @car.slash_command_group(name="a")
     async def a(self, ctx):

@@ -100,9 +100,9 @@ class Command:
             self.guild_id = check.guild_id
 
     # raises CheckError if checks fail
-    async def run_checks(self, ctx: 'Context') -> None:
+    def run_checks(self, ctx: 'Context') -> None:
         for check in self.checks:
-            await check.check(ctx)
+            check.check(ctx)
 
     # def run(self, ctx: 'Context') -> None:
         # try:
@@ -224,27 +224,29 @@ class MixedCommandContainer:
         self.slash_command = slash_command
         self.text_command = text_command
 
-def mixed_command(text_name: str, slash_name: str,
+def mixed_command(*, text_name: Optional[str] = None,
+                  slash_name: Optional[str] = None,
                   aliases: tuple[str, ...] = (), **kwargs):
     def decorator(func):
         return MixedCommandContainer(
-            slash_command=SlashCommand(name=slash_name, func=func, **kwargs),
-            text_command=TextCommand(name=text_name, func=func,
+            slash_command=SlashCommand(name=slash_name or func.__name__,
+                                       func=func, **kwargs),
+            text_command=TextCommand(name=text_name or func.__name__, func=func,
                                      aliases=aliases, **kwargs)
         )
     return decorator
 
-def text_command(name: Optional[str] = None, **kwargs):
+def text_command(*, name: Optional[str] = None, **kwargs):
     def decorator(func):
         return TextCommand(name=name or func.__name__, func=func, **kwargs)
     return decorator
 
-def slash_command(name: str, **kwargs):
+def slash_command(*, name: Optional[str] = None, **kwargs):
     def decorator(func):
-        return SlashCommand(name=name, func=func, **kwargs)
+        return SlashCommand(name=name or func.__name__, func=func, **kwargs)
     return decorator
 
-def slash_command_group(name: str, desc: str = "Command Group"):
+def slash_command_group(*, name: str, desc: str = "Command Group"):
     def decorator(func):
         return SlashCommand(func=func, name=name, desc=desc, hidden=True)
     return decorator

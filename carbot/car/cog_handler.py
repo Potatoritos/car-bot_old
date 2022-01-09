@@ -170,7 +170,7 @@ class CogHandler:
             return
 
         try:
-            await cmd.run_checks(ctx)
+            cmd.run_checks(ctx)
         except CheckError as e:
             await self.handle_error(ctx, cmd, e)
             return
@@ -203,7 +203,7 @@ class CogHandler:
     async def run_command_text(self, ctx: TextContext, cmd: TextCommand,
                                content: str) -> None:
         try:
-            await cmd.run_checks(ctx)
+            cmd.run_checks(ctx)
         except CheckError as e:
             await self.handle_error(ctx, cmd, e)
             return

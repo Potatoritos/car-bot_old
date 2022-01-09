@@ -24,18 +24,18 @@ __all__ = [
 
 class Check(metaclass=ABCMeta):
     EMOTE_YES = "`[✓]`"
-    EMOTE_NO = "`[✕]`"
+    EMOTE_NO = "`[ ]`"
 
     def emote(self, condition) -> str:
         return self.EMOTE_YES if condition else self.EMOTE_NO
 
     # Raises CheckError if check fails
     @abstractmethod
-    async def check(self, ctx: 'Context') -> None:
+    def check(self, ctx: 'Context') -> None:
         pass
 
     @abstractmethod
-    async def desc(self, ctx: 'Context') -> str:
+    def desc(self, ctx: 'Context') -> str:
         pass
 
     def modify_func(self, func: Callable[..., Awaitable[Any]]) -> None:
@@ -58,14 +58,14 @@ class RequiresPermissions(Check):
             p for p, v in self.permissions.items() if getattr(perms, p) != v
         ]
 
-    async def check(self, ctx: 'Context') -> None:
+    def check(self, ctx: 'Context') -> None:
         missing = self.get_missing(ctx)
         if missing:
             raise CheckError("You aren't allowed to use this command!\n\n"
                              "Missing permissions:\n"
                              + '\n'.join(f"`{perm}`" for perm in missing))
 
-    async def desc(self, ctx: 'Context') -> str:
+    def desc(self, ctx: 'Context') -> str:
         missing = self.get_missing(ctx)
         return (
             f"{self.emote(len(missing) == 0)} requires permissions: "
@@ -75,25 +75,25 @@ class RequiresPermissions(Check):
 
 
 class GuildOnly(Check):
-    async def check(self, ctx: 'Context') -> None:
+    def check(self, ctx: 'Context') -> None:
         if ctx.is_dm():
             raise CheckError("This command is only available in servers!")
 
-    async def desc(self, ctx: 'Context') -> str:
-        return f"{self.emote(ctx.is_dm())} Must be used in a server"
+    def desc(self, ctx: 'Context') -> str:
+        return f"{self.emote(not ctx.is_dm())} Must be used in a server"
 
 
 class SpecificGuildOnly(Check):
     def __init__(self, guild_id: int):
         self.guild_id = guild_id
 
-    async def check(self, ctx: 'Context') -> None:
+    def check(self, ctx: 'Context') -> None:
         if ctx.is_dm():
             raise CheckError("This command is only available in servers!")
         elif ctx.guild.id != self.guild_id:
             raise CheckError("This command is not available in this server!")
 
-    async def desc(self, ctx: 'Context') -> str:
+    def desc(self, ctx: 'Context') -> str:
         if ctx.is_dm() or ctx.guild.id != self.guild_id:
             return f"{self.EMOTE_NO} is not available in this server"
         else:

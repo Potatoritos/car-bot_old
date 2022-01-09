@@ -188,3 +188,8 @@ class TextContext(Context):
             raise ContextError("Command has not been responded to yet")
         await self._response.delete()
 
+    async def reply(self, content: Optional[str] = None, **kwargs) -> Message:
+        return await self.send(
+            content, **kwargs, reference=self.message.to_reference()
+        )
+

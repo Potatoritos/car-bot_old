@@ -10,8 +10,8 @@ __all__ = [
 ]
 
 class Cog:
-    global_checks: tuple[Callable, ...] = ()
-    global_category: str = "Uncategorized"
+    checks: tuple[Callable, ...] = ()
+    category: str = "Uncategorized"
 
     def __init__(self, bot: 'Bot'):
         self.text_commands: list[TextCommand] = []
@@ -27,11 +27,11 @@ class Cog:
 
     def _add_command(self, cmd: Command):
         if cmd.category == "Uncategorized":
-            cmd.category = self.global_category
+            cmd.category = self.category
 
         cmd.parent_cog = self
 
-        for check_deco in self.global_checks:
+        for check_deco in self.checks:
             check = check_deco()
             cmd.add_check(check)
 

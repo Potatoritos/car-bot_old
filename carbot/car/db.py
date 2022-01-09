@@ -4,7 +4,7 @@ import sqlite3
 
 # TODO: properly annotate types instead of just using Any
 class Column:
-    def __init__(self, name: str, default: Any,
+    def __init__(self, name: str, default: Any, *,
                  primary_key: bool = False):
         self.name = name
         self.default = default
@@ -13,6 +13,7 @@ class Column:
     def sql_var(self) -> str:
         types = {
             int: "INTEGER",
+            bool: "INTEGER",
             float: "REAL",
             str: "TEXT"
         }
@@ -22,7 +23,7 @@ class Column:
 
 class Table:
     def __init__(self, con: sqlite3.Connection, name: str,
-                 columns: tuple[Column]):
+                 columns: tuple[Column, ...]):
         assert columns[0].primary_key
         self.con = con
         self.columns = {c.name: c for c in columns}
@@ -37,7 +38,7 @@ class Table:
         con.commit()
 
     def __contains__(self, key: Any) -> bool:
-        cur = con.cursor()
+        cur = self.con.cursor()
         cur.execute(f"SELECT * FROM {self.name} WHERE "
                     f"{self.primary_key} = ?", (key,))
         res = cur.fetchone()
@@ -47,15 +48,15 @@ class Table:
     def cell(self, key: Any, column_name: str) -> Any:
         if column_name not in self.columns:
             raise KeyError(f"Invalid column name: '{column_name}'")
-        cur = con.cursor()
+        cur = self.con.cursor()
         cur.execute(f"SELECT {column_name} FROM {self.name} WHERE "
                     f"{self.primary_key} = ?", (key,))
         res = cur.fetchone()
         cur.close()
         return res[0]
 
-    def row(self, key: Any) -> tuple[Any]:
-        cur = con.cursor()
+    def row(self, key: Any) -> dict[str, Any]:
+        cur = self.con.cursor()
         cur.execute(f"SELECT * FROM {self.name} WHERE "
                     f"{self.primary_key} = ?", (key,))
         res = cur.fetchone()
@@ -66,12 +67,12 @@ class Table:
                commit: bool = True) -> None:
         if column_name not in self.columns:
             raise KeyError(f"Invalid column name: '{column_name}'")
-        cur = con.cursor()
+        cur = self.con.cursor()
         cur.execute(f"UPDATE {self.name} SET {column_name} = ? WHERE "
                     f"{self.primary_key} = ?", (new_val, key))
         cur.close()
         if commit:
-            con.commit()
+            self.con.commit()
 
     def insert(self, key: Any, vals: tuple = ()) -> None:
         if len(vals) == 0:
@@ -80,34 +81,40 @@ class Table:
         elif len(vals) != len(self.columns)-1:
             raise ValueError
 
-        cur = con.cursor()
+        cur = self.con.cursor()
         qs = ", ?" * len(vals)
         cur.execute(f"INSERT OR IGNORE INTO {self.name} VALUES (?{qs})",
                     (key,) + vals)
         cur.close()
-        con.commit()
+        self.con.commit()
 
 
 class PersistentStorage:
     def __init__(self, table: Table):
         self.table = table
-        self.storage = {}
+        self.storage: dict[str, dict[str, Any]] = {}
 
     def __contains__(self, key: Any) -> bool:
         return key in self.table
 
     def cell(self, key: Any, column_name: str) -> Any:
+        if key not in self.storage:
+            self.insert(key)
         return self.storage[key][column_name]
 
-    def row(self, key: Any) -> tuple[Any]:
+    def row(self, key: Any) -> dict[str, Any]:
+        if key not in self.storage:
+            self.insert(key)
         return self.storage[key]
 
     def update(self, key: Any, column_name: str, new_val: Any,
                commit: bool = True) -> None:
+        if key not in self.storage:
+            self.insert(key)
         self.table.update(key, column_name, new_val)
         self.storage[key][column_name] = new_val
 
     def insert(self, key: Any, vals: tuple = ()) -> None:
         self.table.insert(key, vals)
-        self.cache[key] = self.table.row(key)
+        self.storage[key] = self.table.row(key)
 

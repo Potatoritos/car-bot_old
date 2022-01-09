@@ -1,10 +1,12 @@
 import discord
 import asyncio
 import json
+import sqlite3
 from loguru import logger
 
 from .cog_handler import CogHandler
 from .context import TextContext, SlashContext
+from .db import PersistentStorage, Table, Column
 from .enums import CommandType
 
 
@@ -20,6 +22,21 @@ class Bot(discord.Client):
 
         self.cog_handler = CogHandler(self)
 
+        self.con = sqlite3.connect('car.db')
+        self.guild_settings = PersistentStorage(Table(
+            self.con, 'guild_settings', (
+                Column('guild_id', 0, primary_key=True),
+                Column('prefix', "]"),
+                Column('join_message_enabled', False),
+                Column('join_message', ""),
+                Column('leave_message_enabled', False),
+                Column('leave_message', ""),
+                Column('joinleave_channel', 0),
+                Column('pinboard_enabled', False),
+                Column('pinboard_channel', 0)
+            )        
+        ))
+
     async def process_message(self, msg: discord.Message) -> None:
         if not isinstance(msg.channel, (discord.TextChannel,
                                         discord.DMChannel)):
@@ -28,7 +45,10 @@ class Bot(discord.Client):
         if msg.author.bot:
             return
 
-        prefix = "."
+        if msg.guild is None:
+            prefix = "]"
+        else:
+            prefix = self.guild_settings.cell(msg.guild.id, 'prefix')
         if not msg.content.startswith(prefix) \
                 or len(msg.content) <= len(prefix):
             return
@@ -53,6 +73,10 @@ class Bot(discord.Client):
 
     async def on_message(self, msg: discord.Message) -> None:
         await self.process_message(msg)
+
+    async def on_message_edit(self, old: discord.Message,
+                              new: discord.Message) -> None:
+        await self.process_message(new)
 
     async def process_interaction(self, interaction: discord.Interaction
                                   ) -> None:

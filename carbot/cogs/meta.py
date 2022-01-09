@@ -1,17 +1,16 @@
-import discord
+import time
 from typing import Annotated as A, Optional, Union
+import discord
 import car
 
 
 class Meta(car.Cog):
-    global_category = "Meta"
+    category = "Meta"
 
-    async def cmdlist_embed(self,
-                            ctx: car.Context,
-                            commands: Union[dict[str, car.SlashCommand],
-                                            dict[str, car.TextCommand]],
-                            sep: bool = False,
-                            **embed_kwargs) -> discord.Embed:
+    def cmdlist_embed(self, ctx: car.Context,
+                      commands: Union[dict[str, car.SlashCommand],
+                                      dict[str, car.TextCommand]],
+                      sep: bool = False, **embed_kwargs) -> discord.Embed:
         categories: dict[str, list[str]] = {}
 
         for name, cmd in sorted(commands.items()):
@@ -22,7 +21,7 @@ class Meta(car.Cog):
 
             n = f"`{name}`"
             try:
-                await cmd.run_checks(ctx)
+                cmd.run_checks(ctx)
             except car.CheckError:
                 n = f"~~`{name}`~~"
 
@@ -34,7 +33,6 @@ class Meta(car.Cog):
 
         e = discord.Embed(**embed_kwargs)
         en_space = '\u2002'
-
         if sep:
             en_space = f",{en_space}"
 
@@ -44,11 +42,10 @@ class Meta(car.Cog):
                 value=en_space.join(cmds),
                 inline=False
             )
-
         return e
 
-    async def cmdhelp_embed(self, ctx: car.Context, cmd: car.Command,
-                            embed_title: str) -> discord.Embed:
+    def cmdhelp_embed(self, ctx: car.Context, cmd: car.Command,
+                      embed_title: str) -> discord.Embed:
         desc = cmd.desc
         e = discord.Embed(title=embed_title, description=cmd.desc)
 
@@ -61,13 +58,10 @@ class Meta(car.Cog):
                         inline=False)
 
         if len(cmd.checks) > 0:
-            descs = []
-            for c in cmd.checks:
-                descs.append(await c.desc(ctx))
             e.add_field(name="Checks",
-                        value="This command:\n"+ '\n'.join(descs),
+                        value="This command:\n"
+                        + '\n'.join(c.desc(ctx) for c in cmd.checks),
                         inline=False)
-
         return e
 
     @car.mixed_command(text_name="help", slash_name="help_text",
@@ -91,7 +85,7 @@ class Meta(car.Cog):
                 f"Use `/help` (or `{ctx.prefix}help_slash`) to view slash"
                 " command help"
             )
-            await ctx.respond(embed=await self.cmdlist_embed(
+            await ctx.respond(embed=self.cmdlist_embed(
                 ctx, self.bot.cog_handler.text_commands,
                 title=title, description=desc
             ))
@@ -102,7 +96,7 @@ class Meta(car.Cog):
             raise car.ArgumentError(f"Invalid command! Use `{ctx.prefix}help` "
                                 "to view the list of commands.", 'command')
 
-        await ctx.respond(embed=await self.cmdhelp_embed(
+        await ctx.respond(embed=self.cmdhelp_embed(
                 ctx, cmd, f"Text command: {cmd.name}"))
 
     @car.mixed_command(text_name="help_slash", slash_name="help")
@@ -123,7 +117,7 @@ class Meta(car.Cog):
                 f"Use `/help_text` or `(insert alt help here)` to view "
                 "the list of text commands"
             )
-            await ctx.respond(embed=await self.cmdlist_embed(
+            await ctx.respond(embed=self.cmdlist_embed(
                 ctx, self.bot.cog_handler.slash_commands,
                 sep=True, title=title, description=desc
             ))
@@ -134,6 +128,26 @@ class Meta(car.Cog):
             raise car.ArgumentError(f"Invalid command! Use `/help` to view the "
                                 "list of commands.", 'command')
 
-        await ctx.respond(embed=await self.cmdhelp_embed(
+        await ctx.respond(embed=self.cmdhelp_embed(
                 ctx, cmd, f"Slash command: {cmd.name}"))
+
+    @car.mixed_command()
+    async def syntax(self, ctx: car.Context):
+        """Displays text command syntax help"""
+        pass
+
+    @car.mixed_command()
+    async def ping(self, ctx: car.TextContext):
+        """Displays my latency"""
+        p = f":heart: {int(self.bot.latency*1000)}ms"
+        e = discord.Embed(description=p)
+
+        bef = time.monotonic()
+        await ctx.respond("Pong!", embed=e)
+
+        delta = time.monotonic() - bef
+        p += f"\n:envelope: {int(delta*1000)}ms"
+
+        await ctx.edit_response(embed=discord.Embed(description=p))
+
 
