@@ -68,3 +68,7 @@ class Guild(car.Cog):
                     inline=False)
         await ctx.respond(embed=e)
 
+    @car.listener
+    async def on_message(self, msg: discord.Message):
+        print(msg.content)
+

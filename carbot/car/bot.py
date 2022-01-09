@@ -95,9 +95,10 @@ class Bot(discord.Client):
         logger.success(f"Logged in as {self.user.name}#"
                        f"{self.user.discriminator} (id: {self.user.id})")
 
-    # this is called by discord.Client whenever an event occurs
+    # called by discord.Client whenever an event occurs
     def dispatch(self, event, *args, **kwargs):
         super().dispatch(event, *args, **kwargs)
+        self.cog_handler.run_listeners('on_' + event, args, kwargs)
 
     def run(self, *args, **kwargs) -> None:
         logger.info("Logging in...")

@@ -10,7 +10,6 @@ from .argument import Argument, FromChoices, InRange
 from .check import Check, RequiresPermissions, GuildOnly, SpecificGuildOnly
 from .enums import CommandType, OptionType
 from .exception import CommandError, CogError
-from .tokenizer import Tokenizer
 from .util import generate_repr
 if TYPE_CHECKING:
     from .cog import Cog

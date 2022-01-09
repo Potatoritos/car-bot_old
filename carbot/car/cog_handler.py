@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Type, Union, TYPE_CHECKING
 import json
 import requests
@@ -12,6 +13,7 @@ from .converter import convert
 from .exception import (
     CogError, CheckError, CommandError, ArgumentError, CarException
 )
+from .listener import Listener
 from .tokenizer import Tokenizer, filter_kwargs
 if TYPE_CHECKING:
     from .bot import Bot
@@ -28,6 +30,7 @@ class CogHandler:
         self.slash_commands: dict[str, SlashCommand] = {}
         self.text_commands: dict[str, TextCommand] = {}
         self.text_aliases: dict[str, TextCommand] = {}
+        self.listeners: dict[str, dict[str, Listener]] = {}
 
         self.bot = bot
 
@@ -52,11 +55,16 @@ class CogHandler:
         for slash_cmd in self.cogs[cog_name].slash_commands:
             self._load_slash_command(slash_cmd)
 
+        for listener in self.cogs[cog_name].listeners:
+            self._load_listener(cog_name, listener)
+
     def unload_cog(self, cog_name: str) -> None:
         for text_cmd in self.cogs[cog_name].text_commands:
             self._unload_text_command(text_cmd.name)
         for slash_cmd in self.cogs[cog_name].slash_commands:
             self._unload_slash_command(slash_cmd.name)
+
+        self._unload_listeners(cog_name)
 
         del self.cogs[cog_name]
 
@@ -89,6 +97,16 @@ class CogHandler:
 
     def _unload_slash_command(self, cmd_name: str) -> None:
         del self.slash_commands[cmd_name]
+
+    def _load_listener(self, cog_name: str, listener: Listener) -> None:
+        if listener.event not in self.listeners:
+            self.listeners[listener.event] = {}
+        self.listeners[listener.event][cog_name] = listener
+
+    def _unload_listeners(self, cog_name: str) -> None:
+        for dct in self.listeners.values():
+            if cog_name in dct:
+                del dct[cog_name]
 
     def slash_commands_json(self) -> list[dict]:
         cmd_list: list[dict] = []
@@ -236,4 +254,11 @@ class CogHandler:
             await cmd.run(ctx)
         except CarException as e:
             await self.handle_error(ctx, cmd, e)
+
+    def run_listeners(self, event: str, args: tuple[Any, ...],
+                      kwargs: dict[str, Any]):
+        if event not in self.listeners:
+            return
+        for listener in self.listeners[event].values():
+            asyncio.create_task(listener.run(args, kwargs))
 
