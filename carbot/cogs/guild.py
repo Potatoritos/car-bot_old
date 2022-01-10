@@ -39,7 +39,6 @@ class Guild(car.Cog):
 
         e = discord.Embed(title="Settings")
         r = self.bot.guild_settings.row(ctx.guild.id)
-        print(r)
         e.add_field(name="prefix", value=r['prefix'], inline=False)
         e.add_field(name="join_message_enabled",
                     value="Yes" if r['join_message_enabled'] else "No",
@@ -55,20 +54,67 @@ class Guild(car.Cog):
                     value="*(None)*" if r['leave_message'] == ""
                           else r['leave_message'],
                     inline=False)
-        c = discord.utils.get(ctx.guild.channels, id=r['joinleave_channel'])
+        c = discord.utils.get(ctx.guild.text_channels,
+                              id=r['joinleave_channel'])
         e.add_field(name="joinleave_channel",
                     value="*(None)*" if c is None else c.mention,
                     inline=False)
         e.add_field(name="pinboard_enabled",
                     value="Yes" if r['pinboard_enabled'] else "No",
                     inline=False)
-        c = discord.utils.get(ctx.guild.channels, id=r['pinboard_channel'])
+        c = discord.utils.get(ctx.guild.text_channels,
+                              id=r['pinboard_channel'])
         e.add_field(name="pinboard_channel",
                     value="*(None)*" if c is None else c.mention,
                     inline=False)
         await ctx.respond(embed=e)
 
     @car.listener
-    async def on_message(self, msg: discord.Message):
-        print(msg.content)
+    async def on_member_join(self, member: discord.Member):
+        r = self.bot.guild_settings.row(member.guild.id)
+        if not r['join_message_enabled']:
+            return
+
+        c = discord.utils.get(member.guild.text_channels,
+                              id=r['joinleave_channel'])
+        if c is None:
+            return
+
+        greeting = car.zwsp(
+            r['join_message'].format(
+                username=member.name, name=member.name,
+                discrim=member.discriminator,
+                discriminator=member.discriminator,
+                mention=member.mention, ping=member.mention,
+                id=member.id
+            ),
+            '/'
+        )
+        allowed = discord.AllowedMentions(everyone=False, roles=False)
+        await c.send(greeting, allowed_mentions=allowed)
+
+
+    @car.listener
+    async def on_member_remove(self, member: discord.Member):
+        r = self.bot.guild_settings.row(member.guild.id)
+        if not r['leave_message_enabled']:
+            return
+
+        c = discord.utils.get(member.guild.text_channels,
+                              id=r['joinleave_channel'])
+        if c is None:
+            return
+
+        farewell = car.zwsp(
+            r['leave_message'].format(
+                username=member.name, name=member.name,
+                discrim=member.discriminator,
+                discriminator=member.discriminator,
+                mention=member.mention, ping=member.mention,
+                id=member.id
+            ),
+            '/'
+        )
+        allowed = discord.AllowedMentions(everyone=False, roles=False)
+        await c.send(farewell, allowed_mentions=allowed)
 

@@ -14,14 +14,16 @@ def main():
     for cog_cls in (
         cogs.TestCog,
         cogs.Meta,
-        cogs.Guild
+        cogs.Guild,
+        cogs.Simulation
     ):
         bot.cog_handler.add_cog_class(cog_cls)
 
     for cog_name in (
         "TestCog",
         "Meta",
-        "Guild"
+        "Guild",
+        "Simulation"
     ):
         bot.cog_handler.load_cog(cog_name)
 

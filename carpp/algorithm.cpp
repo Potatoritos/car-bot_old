@@ -4,9 +4,6 @@
 #include <queue>
 #include <utility>
 
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-
 #define INF 0x3f3f3f3f
 
 namespace carpp::algorithm {

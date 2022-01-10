@@ -152,23 +152,14 @@ class Argument:
         return data
 
 class FromChoices:
-    @overload
-    def __init__(self, *choices: tuple[str, str]):
-        ...
-
-    @overload
-    def __init__(self, *choices: tuple[str, int]):
-        ...
-
-    @overload
-    def __init__(self, *choices: tuple[str, float]):
-        ...
-
-    def __init__(self, *choices):
+    def __init__(self, choices: Union[dict[str, int],
+                                      dict[str, float],
+                                      dict[str, str]]):
         self.choices = choices
 
     def json(self):
-        return [{"name": name, "value": val} for name, val in self.choices]
+        return [{'name': name, 'value': val}
+                for name, val in self.choices.items()]
 
 class InRange:
     def __init__(

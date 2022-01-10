@@ -3,6 +3,7 @@
 namespace py = pybind11;
 
 #include "algorithm.h"
+#include "simulation.h"
 
 PYBIND11_MODULE(carpp, m) {
     m.doc() = "Collection of functions to speed up carbot";
@@ -31,6 +32,14 @@ PYBIND11_MODULE(carpp, m) {
         "Returns (levenshtein dist., index) of the most similar string",
         py::arg("query"),
         py::arg("against")
+    );
+    m.def(
+        "akpull",
+        &carpp::simulation::func_akpull,
+        "Simulates Arknights pulls",
+        py::arg("trials"),
+        py::arg("pulls"),
+        py::arg("prob_rateup")
     );
 }
 

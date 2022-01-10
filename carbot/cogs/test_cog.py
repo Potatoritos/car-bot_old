@@ -35,9 +35,9 @@ class TestCog(car.Cog):
         self,
         ctx,
         a: A[int, car.InRange(-2, 5)],
-        b: A[str, car.FromChoices(("Value A", "val_a"),
-                                  ("Value B", "val_b"),
-                                  ("Value C", "val_c"))],
+        b: A[str, car.FromChoices({"Value A": "val_a",
+                                   "Value B": "val_b",
+                                   "Value C": "val_c"})],
         c: bool,
         d: discord.Member,
         e: discord.Role,
@@ -70,7 +70,7 @@ class TestCog(car.Cog):
         ctx,
         arg1: A[int, "bing bong", car.InRange(lower=-3)],
         arg2: str,
-        arg3: A[float, "this is a description", car.FromChoices(("a",2.3), ("b",6.9), ("c",-2))],
+        arg3: A[float, "this is a description", car.FromChoices({"a":2.3, "b":6.9, "c":-2})],
         arg4: A[bool, "asdasd *sdfsdf*"],
         arg5: A[Optional[float], "asdsk gfjglkdgj", car.InRange(upper=72.7)] = 69
     ):
