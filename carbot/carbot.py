@@ -14,6 +14,7 @@ def main():
     for cog_cls in (
         cogs.TestCog,
         cogs.Meta,
+        cogs.Text,
         cogs.Guild,
         cogs.Simulation
     ):
@@ -22,6 +23,7 @@ def main():
     for cog_name in (
         "TestCog",
         "Meta",
+        "Text",
         "Guild",
         "Simulation"
     ):
