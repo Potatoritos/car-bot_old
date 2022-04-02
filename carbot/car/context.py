@@ -4,10 +4,10 @@ import discord
 from loguru import logger
 from discord import (
     AllowedMentions, Message, TextChannel, Guild, PartialMessageable, Thread,
-    Member, User, Embed, Interaction, WebhookMessage
+    Member, User, Embed, Interaction, WebhookMessage, Attachment
 )
 
-from .exception import ContextError
+from .exception import ContextError, CommandError
 from .util import generate_repr
 if TYPE_CHECKING:
     from .bot import Bot
@@ -81,6 +81,13 @@ class Context(metaclass=ABCMeta):
     async def delete_response(self) -> None:
         pass
 
+    async def last_attachment(self) -> Attachment:
+        async for msg in self.channel.history(limit=100):
+            if len(msg.attachments) != 0:
+                return msg.attachments[0]
+
+        raise CommandError("I couldn't find any attachments in this channel!")
+
     # @abstractmethod
     # async def followup(self, *args, **kwargs) -> None:
         # pass
@@ -100,9 +107,10 @@ class SlashContext(Context):
         super().__init__(channel=channel, guild=guild,
                          author_user=author_user, bot=bot, prefix=prefix)
         self.interaction = interaction
+        self.deferred = False
 
     def __repr__(self) -> str:
-        return generate_repr("Context", (
+        return generate_repr("SlashContext", (
             ('channel', self.channel),
             ('guild', self._guild),
             ('author', self.author),
@@ -123,9 +131,13 @@ class SlashContext(Context):
 
     async def defer(self) -> None:
         await self.interaction.response.defer()
+        self.deferred = True
 
     async def respond(self, content: Optional[str] = None, **kwargs) -> None:
-        await self.interaction.response.send_message(content, **kwargs)
+        if self.deferred:
+            await self.edit_response(content=content, **kwargs)
+        else:
+            await self.interaction.response.send_message(content, **kwargs)
 
     async def edit_response(self, **kwargs) -> None:
         await self.interaction.edit_original_message(**kwargs)
@@ -151,7 +163,7 @@ class TextContext(Context):
         self._response: Optional[Message] = None
 
     def __repr__(self) -> str:
-        return generate_repr("Context", (
+        return generate_repr("TextContext", (
             ('message', self.message),
             ('channel', self.channel),
             ('guild', self._guild),
@@ -160,7 +172,7 @@ class TextContext(Context):
         ))
 
     @classmethod
-    def from_message(cls, bot: 'Bot', message: Message, prefix: str):
+    def from_message(cls, bot: 'Bot', message: Message, prefix: str = ''):
         if not isinstance(message.channel, (TextChannel, PartialMessageable,
                                             Thread)):
             raise ContextError("Invalid message")
@@ -192,4 +204,10 @@ class TextContext(Context):
         return await self.send(
             content, **kwargs, reference=self.message.to_reference()
         )
+
+    async def last_attachment(self) -> Attachment:
+        if len(self.message.attachments) != 0:
+            return self.message.attachments[0]
+
+        return await super().last_attachment()
 

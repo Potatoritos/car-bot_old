@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Generator, Optional
 from .exception import CheckError
 
 
@@ -72,6 +72,11 @@ class Tokenizer:
 
     def reset(self) -> None:
         self.index = 0
+
+    def tokens(self) -> Generator[str, None, None]:
+        while not self.is_eof():
+            yield self.next_token()
+        self.reset()
 
 def filter_kwargs(content: str) -> tuple[str, dict[str, str]]:
     spl = []

@@ -15,7 +15,7 @@ def main():
         bot.cog_handler.add_cog_class(cog_cls)
         bot.cog_handler.load_cog(cog_cls.__name__)
 
-    bot.run(config.TOKEN)
+    bot.cog_handler.put_slash_commands(config.APPLICATION_ID, config.TOKEN)
 
 if __name__ == '__main__':
     main()

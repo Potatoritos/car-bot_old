@@ -134,7 +134,7 @@ class Meta(car.Cog):
     @car.mixed_command()
     async def syntax(self, ctx: car.Context):
         """Displays text command syntax help"""
-        pass
+        await ctx.respond("WIP")
 
     @car.mixed_command()
     async def ping(self, ctx: car.TextContext):

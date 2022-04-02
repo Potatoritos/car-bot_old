@@ -5,11 +5,10 @@ import requests
 import discord
 from loguru import logger
 
-import config
 from .cog import Cog
 from .command import Command, TextCommand, SlashCommand
 from .context import Context, SlashContext, TextContext
-from .converter import convert
+from .converter import convert_arg
 from .exception import (
     CogError, CheckError, CommandError, ArgumentError, CarException
 )
@@ -126,13 +125,13 @@ class CogHandler:
         logger.debug(json.dumps(cmd_list, indent=4))
         return cmd_list
 
-    def put_slash_commands(self) -> None:
+    def put_slash_commands(self, app_id: str, token: str) -> None:
         cmd_list = self.slash_commands_json()
         GUILD_ID = 495327409487478785
-        
+
         url = ("https://discord.com/api/v8/applications/"
-               f"{config.APPLICATION_ID}/guilds/{GUILD_ID}/commands")
-        headers = {"Authorization": f"Bot {config.TOKEN}"}
+               f"{app_id}/guilds/{GUILD_ID}/commands")
+        headers = {"Authorization": f"Bot {token}"}
 
         logger.info("Sending slash command list to discord...")
         r = requests.put(url, headers=headers, json=cmd_list)
@@ -163,7 +162,8 @@ class CogHandler:
         embed = discord.Embed(description=desc)
 
         if isinstance(ctx, TextContext) or (isinstance(ctx, SlashContext) \
-                and not ctx.interaction.response.is_done()):
+                and (not ctx.interaction.response.is_done() \
+                     or ctx.deferred)):
             await ctx.respond(embed=embed)
         else:
             await ctx.send(embed=embed)
@@ -207,7 +207,8 @@ class CogHandler:
                 try:
                     ctx.args[arg.name] = args[arg.name]
                     if not isinstance(ctx.args[arg.name], arg.arg_type):
-                        ctx.args[arg.name] = convert(arg, ctx, args[arg.name])
+                        ctx.args[arg.name] = await convert_arg(
+                                                    arg, ctx, args[arg.name])
                 except ArgumentError as e:
                     logger.error(f"Slash command {cmd} ({ctx}) has invalid "
                                  "arguments (probably because discord hasn't"
@@ -246,7 +247,8 @@ class CogHandler:
                     else:
                         ctx.args[arg.name] = tok.next_token()
                 try:
-                    ctx.args[arg.name] = convert(arg, ctx, ctx.args[arg.name])
+                    ctx.args[arg.name] = await convert_arg(
+                                                arg, ctx, ctx.args[arg.name])
                 except ArgumentError as e:
                     e.highlight = arg.name
                     raise e

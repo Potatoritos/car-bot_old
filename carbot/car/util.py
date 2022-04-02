@@ -1,10 +1,12 @@
 from typing import Any
+from os.path import exists
 
 
 __all__ = [
     'join_last',
     'generate_repr',
-    'zwsp'
+    'zwsp',
+    'temp_file'
 ]
 
 
@@ -22,4 +24,11 @@ def zwsp(s: str, chars: str) -> str:
     for c in chars:
         s = s.replace(c, ZWSP + c)
     return s
+
+def temp_file() -> str:
+    i = 0
+    while i := i+1:
+        name = f"dl/temp_file_{i}"
+        if not exists(f"dl/temp_file_{i}"):
+            return name
 

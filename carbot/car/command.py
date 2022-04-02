@@ -5,11 +5,11 @@ import inspect
 import asyncio
 from enum import Enum
 
-import config
+# import config
 from .argument import Argument, FromChoices, InRange
 from .check import Check, RequiresPermissions, GuildOnly, SpecificGuildOnly
 from .enums import CommandType, OptionType
-from .exception import CommandError, CogError
+from .exception import CommandError, CogError, CarException
 from .util import generate_repr
 if TYPE_CHECKING:
     from .cog import Cog
@@ -82,6 +82,9 @@ class Command:
             outline.append(" ")
             outline.append(label)
 
+        if len(self.args) == 0:
+            outline.append("``")
+
         return "".join(outline)
 
     def usage(self, *, prefix: str = "/") -> str:
@@ -118,7 +121,13 @@ class Command:
             raise CogError("This command has not been initialized properly!")
 
         self.concurrency += 1
-        await self.func(self.parent_cog, ctx, **ctx.args)
+
+        try:
+            await self.func(self.parent_cog, ctx, **ctx.args)
+        except CarException as e:
+            self.concurrency -= 1
+            raise e
+
         self.concurrency -= 1
 
 
@@ -168,11 +177,11 @@ class SlashCommand(Command):
         if self.has_parent():
             data['type'] = OptionType.SUB_COMMAND_GROUP
         else:
-            if config.DEBUG:
-                data['guild_id'] = config.DEBUG_GUILD_ID
+            if self.guild_id is not None:
+                data['guild_id'] = self.guild_id
 
             data['type'] = CommandType.CHAT_INPUT
-            data['application_id'] = config.APPLICATION_ID
+            # data['application_id'] = config.APPLICATION_ID
 
         data['options'] = []
         if len(self.subcommands) == 0:

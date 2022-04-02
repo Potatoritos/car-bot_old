@@ -121,3 +121,10 @@ class TestCog(car.Cog):
     @car.slash_command(name="breaktest breaktest2 breaktest6")
     async def breaktest6(self, ctx): pass
 
+    @car.mixed_command(text_name="bonga", slash_name="bonga")
+    async def bonga(self, ctx):
+        await ctx.defer()
+        a = await ctx.last_attachment()
+        print(a)
+        await ctx.respond(str(a))
+

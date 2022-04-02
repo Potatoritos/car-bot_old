@@ -151,6 +151,7 @@ class Argument:
 
         return data
 
+
 class FromChoices:
     def __init__(self, choices: Union[dict[str, int],
                                       dict[str, float],

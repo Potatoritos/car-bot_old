@@ -19,6 +19,6 @@ class Text(car.Cog):
             }),
         ] = "cow"
     ):
-        text = car.zwsp(text, '`')
-        await ctx.respond(f"```{cowsay.get_output_string(character, text)}```")
+        text = car.zwsp(cowsay.get_output_string(character, text), '`')
+        await ctx.respond(f"```{text}```")
 
