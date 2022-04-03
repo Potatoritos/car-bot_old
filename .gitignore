@@ -6,6 +6,9 @@ __pycache__/
 
 *.db
 *.mp3
+*.mp4
+*.wav
+*.webm
 
 *.so
 *.dll
