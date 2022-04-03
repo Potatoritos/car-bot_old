@@ -1,42 +1,32 @@
 from abc import ABC, abstractmethod
 import time
-from typing import Any, Optional
+from typing import Any, Generic, Type, TypeVar, Protocol
 import discord
 from loguru import logger
 
 from carpp import fuzzy_match_one
+from .argument import Argument
 from .context import Context
-from .enums import OptionType, ChannelType
+from .enum import OptionType
 from .exception import ArgumentError, CheckError
 from .util import join_last
 
-
 __all__ = [
-    'Converter',
-    'JoinedConverter',
-    'FromChoices',
-    'InRange',
-    'ToInt',
-    'ToFloat',
-    'ToString',
-    'ToURL',
-    'ToBool',
-    'ToMember',
-    'ToRole',
-    'ToTextChannel',
-    'default_converters'
+    'convert',
+    'convert_arg'
 ]
+
 
 # class CanConvert(Protocol):
     # async def convert(self, ctx: Context, val: str)  ->  Any:
         # ...
 
 class Converter(ABC):
-    def __or__(self, other: 'Converter'):
+    def __or__(self, other: Converter):
         return JoinedConverter() | self | other
 
     @abstractmethod
-    async def convert(self, ctx: Context, val: Any) -> Any:
+    async def convert(self, ctx: Context, val: str) -> Any:
         pass
 
     @abstractmethod
@@ -76,7 +66,6 @@ class FromChoices(Converter):
         self,
         choices: dict[str, int] | dict[str, float] | dict[str, str],
     ):
-        assert len(choices) > 0
         self.choices = choices
 
     async def convert(self, ctx: Context, val: str) -> Any:
@@ -86,12 +75,6 @@ class FromChoices(Converter):
         return self.choices[val]
 
     def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = {
-            int: OptionType.INTEGER,
-            float: OptionType.NUMBER,
-            str: OptionType.STRING
-        }[type(next(iter(self.choices.values())))]
-
         data['choices'] = [{'name': name, 'value': val}
                            for name, val in self.choices.items()]
 
@@ -112,14 +95,14 @@ class InRange(Converter):
         assert lower is not None or upper is not None
 
     async def convert(self, ctx: Context, val: int | float) -> int | float:
-        if self.lower is not None and self.upper is not None \
-                and not self.lower <= val <= self.upper:
-            raise ArgumentError(f"This number must ≥ {self.lower} "
-                                f"and ≤ {self.upper}!")
-        elif self.lower is not None and val < self.lower:
-            raise ArgumentError(f"This number must be ≥ {self.lower}!")
-        elif self.upper is not None and val > self.upper:
-            raise ArgumentError(f"This number must be ≤ {self.upper}")
+        if arg.min_value is not None and arg.max_value is not None \
+                and not arg.min_value <= res <= arg.max_value:
+            raise ArgumentError(f"This number must ≥ {arg.min_value} "
+                                f"and ≤ {arg.max_value}!")
+        elif arg.min_value is not None and res < arg.min_value:
+            raise ArgumentError(f"This number must be ≥ {arg.min_value}!")
+        elif arg.max_value is not None and res > arg.max_value:
+            raise ArgumentError(f"This number must be ≤ {arg.max_value}")
 
         return val
 
@@ -191,56 +174,103 @@ class ToString(Converter):
         return "a string"
 
 
-class ToURL(Converter):
-    def __init__(self, allowed_sites: Optional[set[str]]=None):
-        self.allowed_sites = allowed_sites
+T = TypeVar('T')
 
+class Converter(Generic[T], metaclass=ABCMeta):
+    @abstractmethod
+    async def convert(self, ctx: Context, val: str) -> T:
+        pass
+
+    async def arg_validate(self, arg: Argument, res: T) -> None:
+        pass
+
+    async def convert_arg(self, arg: Argument, ctx: Context, val: str) -> T:
+        res: T = await self.convert(ctx, val)
+        await self.arg_validate(arg, res)
+        return res
+
+
+class ConverterInt(Converter):
+    async def convert(self, ctx: Context, val: str) -> int:
+        try:
+            return int(val)
+        except ValueError:
+            raise ArgumentError("This argument must be an integer!")
+
+    async def arg_validate(self, arg: Argument, res: int) -> None:
+        if arg.min_value is not None and arg.max_value is not None \
+                and not arg.min_value <= res <= arg.max_value:
+            raise ArgumentError(f"This number must be at least {arg.min_value}"
+                                f" and at most {arg.max_value}!")
+        elif arg.min_value is not None and res < arg.min_value:
+            raise ArgumentError("This number must be at least "
+                                f"{arg.min_value}!")
+        elif arg.max_value is not None and res > arg.max_value:
+            raise ArgumentError(f"This number must be at most {arg.max_value}")
+
+        elif arg.choices is not None and res not in arg.choices:
+            raise ArgumentError("This number must be one of the following: "
+                            + join_last([f"`{c}`" for c in arg.choices], "or"))
+
+class ConverterFloat(Converter):
+    async def convert(self, ctx: Context, val: str) -> float:
+        try:
+            return float(val)
+        except ValueError:
+            spl = val.split('/')
+            if len(spl) == 2:
+                try:
+                    return float(spl[0]) / float(spl[1])
+                except ZeroDivisionError:
+                    raise ArgumentError("I can't divide by zero!")
+                except ValueError:
+                    raise ArgumentError("Invalid fraction! (fractions must be "
+                                        "in the form a/b, where a and b are "
+                                        "numbers)")
+            else:
+                raise ArgumentError("This must be a number!")
+
+    async def arg_validate(self, arg: Argument, res: float) -> None:
+        if arg.min_value is not None and arg.max_value is not None \
+                and not arg.min_value <= res <= arg.max_value:
+            raise ArgumentError(f"This number must be at least {arg.min_value}"
+                                f" and at most {arg.max_value}!")
+        if arg.min_value is not None and res < arg.min_value:
+            raise ArgumentError("This number must be at least "
+                                f"{arg.min_value}!")
+        if arg.max_value is not None and res > arg.max_value:
+            raise ArgumentError(f"This number must be at most "
+                                f"{arg.max_value}!")
+
+        if arg.choices is not None and res not in arg.choices:
+            raise ArgumentError("This number must be one of the following: "
+                            + join_last([f"`{c}`" for c in arg.choices], "or"))
+
+class ConverterStr(Converter):
     async def convert(self, ctx: Context, val: str) -> str:
-        symbols = set(".-_~:/?#[]@!$&'()*+,;%=")
-        if not all('a' <= c <= 'z' or 'A' <= c <= 'Z' \
-                   or '0' <= c <= '9' or c in symbols for c in val):
-            raise ArgumentError("This URL contains invalid characters!")
-
-        if not val.startswith('http'):
-            val = f"https://{val}"
-
         return val
 
-    def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = OptionType.STRING
+    async def arg_validate(self, arg: Argument, res: str) -> None:
+        print(arg.choices)
+        if arg.choices is not None and res not in arg.choices:
+            raise ArgumentError("This must be one of the following: "
+                            + join_last([f"`{c}`" for c in arg.choices], "or"))
 
-    @property
-    def description(self) -> str:
-        return "a URL"
 
-
-class ToBool(Converter):
+class ConverterBool(Converter):
     async def convert(self, ctx: Context, val: str) -> bool:
-        true_vals = ('true', '1')
-        false_vals = ('false', '0')
+        true_vals = ("true", "1")
+        false_vals = ("false", "0")
         lower = val.lower()
-
-        if lower.startswith('y') or lower in true_vals:
+        if lower.startswith("y") or lower in true_vals:
             return True
-        if lower.startswith('n') or lower in false_vals:
+        if lower.startswith("n") or lower in false_vals:
             return False
-
         raise ArgumentError("This must be `yes` or `no`! (alternatively: "
                         "`true`/`false`, `1`/`0`, or `y`/`n`)")
 
-    def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = OptionType.STRING
-        data['choices'] = [
-            {'name': 'Yes', 'value': '1'},
-            {'name': 'No', 'value': '0'}
-        ]
 
-    @property
-    def description(self) -> str:
-        return "`yes` or `no`"
-
-
-class ToMember(Converter):
+class ConverterMember(Converter):
     async def convert(self, ctx: Context, val: str) -> discord.Member:
         if ctx.guild is None:
             logger.warning("Non-DM Argument found in non-guild-only command!")
@@ -284,15 +314,7 @@ class ToMember(Converter):
 
         return members[idx1] if dist1 <= dist2 else members_nick[idx2]
 
-    def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = OptionType.USER
-
-    @property
-    def description(self) -> str:
-        return "a member"
-
-
-class ToRole(Converter):
+class ConverterRole(Converter):
     async def convert(self, ctx: Context, val: str) -> discord.Role:
         if ctx.guild is None:
             logger.warning("Non-DM Argument found in non-guild-only command!")
@@ -316,15 +338,7 @@ class ToRole(Converter):
         _, idx = fuzzy_match_one(val, [r.name for r in ctx.guild.roles])
         return ctx.guild.roles[idx]
 
-    def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = OptionType.ROLE
-
-    @property
-    def description(self) -> str:
-        return "a role"
-
-
-class ToTextChannel(Converter):
+class ConverterTextChannel(Converter):
     async def convert(self, ctx: Context, val: str) -> discord.TextChannel:
         if ctx.guild is None:
             logger.warning("Non-DM Argument found in non-guild-only command!")
@@ -348,28 +362,20 @@ class ToTextChannel(Converter):
         _, idx = fuzzy_match_one(val, [c.name for c in ctx.guild.text_channels])
         return ctx.guild.text_channels[idx]
 
-    def modify_slash_data(self, data: dict[str, Any]) -> None:
-        data['type'] = OptionType.CHANNEL
-        data['channel_types'] = [ChannelType.GUILD_TEXT]
 
-    @property
-    def description(self) -> str:
-        return "a text channel"
-
-
-default_converters = {
-    int: ToInt(),
-    str: ToString(),
-    bool: ToBool(),
-    float: ToFloat(),
-    discord.Member: ToMember(),
-    discord.Role: ToRole(),
-    discord.TextChannel: ToTextChannel()
+converters = {
+    int: ConverterInt(),
+    str: ConverterStr(),
+    bool: ConverterBool(),
+    float: ConverterFloat(),
+    discord.Member: ConverterMember(),
+    discord.Role: ConverterRole(),
+    discord.TextChannel: ConverterTextChannel()
 }
 
-# async def convert(ctx: Context, val: str, convert_to: Type[Any]) -> Any:
-    # return await converters[convert_to].convert(ctx, val)
+async def convert(ctx: Context, val: str, convert_to: Type[Any]) -> Any:
+    return await converters[convert_to].convert(ctx, val)
 
-# async def convert_arg(arg: Argument, ctx: Context, val: str) -> Any:
-    # return await converters[arg.arg_type].convert_arg(arg, ctx, val)
+async def convert_arg(arg: Argument, ctx: Context, val: str) -> Any:
+    return await converters[arg.arg_type].convert_arg(arg, ctx, val)
 

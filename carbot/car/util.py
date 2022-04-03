@@ -6,6 +6,7 @@ __all__ = [
     'join_last',
     'generate_repr',
     'zwsp',
+    'without_md_formatting',
     'temp_file'
 ]
 
@@ -13,7 +14,8 @@ __all__ = [
 def join_last(lst: list[str], last_sep: str) -> str:
     if len(lst) == 1:
         return lst[0]
-    return f", {last_sep} ".join([", ".join(lst[:-1])] + lst[-1:])
+    comma = ', '[len(lst) == 2]
+    return f"{comma} {last_sep} ".join([", ".join(lst[:-1])] + lst[-1:])
 
 def generate_repr(name: str, attrs: tuple[tuple[str, Any], ...]) -> str:
     inner = ' '.join(f"{k}={repr(v)}" for k, v in attrs)
@@ -25,10 +27,15 @@ def zwsp(s: str, chars: str) -> str:
         s = s.replace(c, ZWSP + c)
     return s
 
+def without_md_formatting(s: str) -> str:
+    return s.replace('*', '').replace('`', '')
+
 def temp_file() -> str:
     i = 0
     while i := i+1:
         name = f"dl/temp_file_{i}"
         if not exists(f"dl/temp_file_{i}"):
             return name
+
+    return ""
 

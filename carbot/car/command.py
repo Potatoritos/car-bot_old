@@ -6,7 +6,7 @@ import asyncio
 from enum import Enum
 
 # import config
-from .argument import Argument, FromChoices, InRange
+from .argument import Argument
 from .check import Check, RequiresPermissions, GuildOnly, SpecificGuildOnly
 from .enums import CommandType, OptionType
 from .exception import CommandError, CogError, CarException
@@ -92,7 +92,8 @@ class Command:
         items.append(self.outline(prefix=prefix))
 
         for arg in self.args.values():
-            items.append(arg.usage_label(slash=False))
+            items.append(f"`{arg.label}`: {arg.description}")
+            # items.append(arg.usage_label(slash=False))
 
         return "\n\n".join(items)
 

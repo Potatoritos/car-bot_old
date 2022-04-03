@@ -13,9 +13,11 @@ class Wab(car.Cog):
 
             ctx = car.TextContext.from_message(self.bot, msg)
 
-            pings = [(await car.convert(ctx, p[5:], discord.Member)).mention
-                     for p in tok.tokens()
-                     if p.startswith("ping:") and len(p) > 5]
+            pings = [
+                (await car.ToMember().convert(ctx, p[5:])).mention
+                for p in tok.tokens()
+                if p.startswith("ping:") and len(p) > 5
+            ]
 
             if pings:
                 allowed = discord.AllowedMentions(everyone=False, users=True,

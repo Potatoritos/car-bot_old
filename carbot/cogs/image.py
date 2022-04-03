@@ -32,6 +32,7 @@ class Image(car.Cog):
         if r.status_code != 200:
             raise car.CommandError("Request failed!")
 
+        # blobyikes
         content = requests.get(r.json()['renderLocation'], verify=False).content
         f = discord.File(io.BytesIO(content), filename="burningtext.gif")
 

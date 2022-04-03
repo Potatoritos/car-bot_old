@@ -34,7 +34,7 @@ class Utility(car.Cog):
     async def ytdlp(
         self,
         ctx: car.Context,
-        url: A[str, "the URL of the video to download"],
+        url: A[str, car.ToURL()],
         file_format: A[
             Optional[str],
             "the format of the downloaded file",
@@ -42,30 +42,26 @@ class Utility(car.Cog):
         ] = 'mp4'
     ):
         """Downloads audio/video with yt-dlp"""
-        if ' ' in url or '"' in url:
-            raise ArgumentError("Invalid URL!")
         await ctx.defer()
 
-        file_name = self.temp_filename(file_format)
-
-        output_file_name: str
+        file_name = f"dl/ytdlp.{file_format}"
         file_size_bytes: int
 
         def progress_hook(data):
-            nonlocal output_file_name, file_size_bytes
+            nonlocal file_size_bytes
             print(f"PROGRESS HOOK {data['filename']=}, {data['status']=}, {data['total_bytes']=}")
             if data['status'] == 'downloading':
+                print(data['tmpfilename'])
                 pass
             elif data['status'] == 'finished':
-                output_file_name = data['filename']
                 file_size_bytes = data['total_bytes']
 
         def postprocessor_hook(data):
-            print(f"PP HOOK {data['status']=}")
+            print(f"PP HOOK {data['status']=}, {data['postprocessor']=}")
 
         opts = {
-            'format': file_format,
-            'outtmpl': file_name,
+            'format': 'bestaudio+bestvideo',
+            'outtmpl': 'dl/ytdlp.%(ext)s',
             'max_filesize': 3e8,
             'logger': YTDLLogger(),
             'progress_hooks': [progress_hook],
@@ -104,7 +100,7 @@ class Utility(car.Cog):
         upload_limits_bytes = [8e6, 8e6, 5e7, 1e8]
 
         if file_size_bytes < upload_limits_bytes[ctx.guild.premium_tier]:
-            await ctx.respond(file=discord.File(output_file_name, "ytdlp.mp4"))
+            await ctx.respond(file=discord.File(file_name, f"ytdlp.{file_format}"))
         else:
             pass
 

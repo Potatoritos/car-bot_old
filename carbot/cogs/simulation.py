@@ -11,9 +11,11 @@ class Simulation(car.Cog):
         self,
         ctx: car.Context,
         banner_type: A[int, car.FromChoices({'Standard': 50, 'Limited': 70})],
-        pulls: A[Optional[int], car.InRange(lower=0)] = 0,
-        orundums: A[Optional[int], car.InRange(lower=0)] = 0,
-        originite_prime: A[Optional[int], car.InRange(lower=0)] = 0
+        pulls: A[Optional[int], car.ToInt() | car.InRange(lower=0)] = 0,
+        orundums: A[Optional[int], car.ToInt() | car.InRange(lower=0)] = 0,
+        originite_prime: A[
+            Optional[int], car.ToInt() | car.InRange(lower=0)
+        ] = 0
     ):
         assert pulls is not None and orundums is not None \
             and originite_prime is not None

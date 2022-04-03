@@ -2,9 +2,23 @@ from enum import Enum
 
 
 __all__ = [
-    'CommandType'
+    'ChannelType',
+    'CommandType',
     'OptionType'
 ]
+
+class ChannelType(int, Enum):
+    GUILD_TEXT = 0
+    DM = 1
+    GUILD_VOICE = 2
+    GROUP_DM = 3
+    GUILD_CATEGORY = 4
+    GUILD_NEWS = 5
+    GUILD_NEWS_THREAD = 10
+    GUILD_PUBLIC_TREAD = 11
+    GUILD_PRIVATE_THREAD = 12
+    GUILD_STAGE_VOICE = 13
+    GUILD_DIRECTORY = 14
 
 class CommandType(int, Enum):
     CHAT_INPUT = 1

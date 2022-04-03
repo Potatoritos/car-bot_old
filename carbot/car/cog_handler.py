@@ -8,7 +8,6 @@ from loguru import logger
 from .cog import Cog
 from .command import Command, TextCommand, SlashCommand
 from .context import Context, SlashContext, TextContext
-from .converter import convert_arg
 from .exception import (
     CogError, CheckError, CommandError, ArgumentError, CarException
 )
@@ -207,8 +206,8 @@ class CogHandler:
                 try:
                     ctx.args[arg.name] = args[arg.name]
                     if not isinstance(ctx.args[arg.name], arg.arg_type):
-                        ctx.args[arg.name] = await convert_arg(
-                                                    arg, ctx, args[arg.name])
+                        ctx.args[arg.name] = await arg.converter.convert(
+                                                        ctx, args[arg.name])
                 except ArgumentError as e:
                     logger.error(f"Slash command {cmd} ({ctx}) has invalid "
                                  "arguments (probably because discord hasn't"
@@ -221,6 +220,7 @@ class CogHandler:
 
     async def run_command_text(self, ctx: TextContext, cmd: TextCommand,
                                content: str) -> None:
+        print("RUN COMMAND")
         try:
             cmd.run_checks(ctx)
         except CheckError as e:
@@ -247,8 +247,8 @@ class CogHandler:
                     else:
                         ctx.args[arg.name] = tok.next_token()
                 try:
-                    ctx.args[arg.name] = await convert_arg(
-                                                arg, ctx, ctx.args[arg.name])
+                    ctx.args[arg.name] = await arg.converter.convert(
+                                                ctx, ctx.args[arg.name])
                 except ArgumentError as e:
                     e.highlight = arg.name
                     raise e

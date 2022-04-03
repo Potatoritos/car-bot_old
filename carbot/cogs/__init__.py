@@ -1,4 +1,4 @@
-from .test_cog import TestCog
+# from .test_cog import TestCog
 from .image import Image
 from .guild import Guild
 from .text import Text
