@@ -38,7 +38,9 @@ class Guild(car.Cog):
             self.bot.guild_settings.update(ctx.guild.id, name, new_val)
 
         e = discord.Embed(title="Settings")
-        r = self.bot.guild_settings.row(ctx.guild.id)
+        r = self.bot.guild_settings.select('*', 'where guild_id=?',
+                                           (ctx.guild.id,))
+
         e.add_field(name="prefix", value=r['prefix'], inline=False)
         e.add_field(name="join_message_enabled",
                     value="Yes" if r['join_message_enabled'] else "No",
@@ -71,7 +73,13 @@ class Guild(car.Cog):
 
     @car.listener
     async def on_member_join(self, member: discord.Member):
-        r = self.bot.guild_settings.row(member.guild.id)
+        if member.guild.id not in self.bot.guild_settings:
+            self.bot.guild_settings.insert(member.guild.id)
+            
+        r = self.bot.guild_settings.select(
+            'join_message_enabled, joinleave_channel, join_message',
+            'where guild_id=?', (member.guild.id,))
+
         if not r['join_message_enabled']:
             return
 
@@ -96,7 +104,13 @@ class Guild(car.Cog):
 
     @car.listener
     async def on_member_remove(self, member: discord.Member):
-        r = self.bot.guild_settings.row(member.guild.id)
+        if member.guild.id not in self.bot.guild_settings:
+            self.bot.guild_settings.insert(member.guild.id)
+            
+        r = self.bot.guild_settings.select(
+            'leave_message_enabled, joinleave_channel, leave_message',
+            'where guild_id=?', (member.guild.id,))
+
         if not r['leave_message_enabled']:
             return
 
@@ -115,6 +129,7 @@ class Guild(car.Cog):
             ),
             '/'
         )
+
         allowed = discord.AllowedMentions(everyone=False, roles=False)
         await c.send(farewell, allowed_mentions=allowed)
 

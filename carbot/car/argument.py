@@ -75,7 +75,11 @@ class Argument:
     
     @property
     def description(self) -> str:
-        desc = f"**{self.converter.description}**—{self._description}"
+        if self._description is None:
+            desc = f"**{self.converter.description}**"
+        else:
+            desc = f"**{self.converter.description}**—{self._description}"
+
         if not self.required:
             if self.default is not None:
                 default = self.default

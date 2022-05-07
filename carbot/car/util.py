@@ -6,6 +6,7 @@ __all__ = [
     'join_last',
     'generate_repr',
     'zwsp',
+    'zwsp_md',
     'without_md_formatting',
     'temp_file'
 ]
@@ -26,6 +27,9 @@ def zwsp(s: str, chars: str) -> str:
     for c in chars:
         s = s.replace(c, ZWSP + c)
     return s
+
+def zwsp_md(s: str) -> str:
+    return zwsp(s, '`*_')
 
 def without_md_formatting(s: str) -> str:
     return s.replace('*', '').replace('`', '')

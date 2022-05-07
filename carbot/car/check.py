@@ -15,10 +15,12 @@ __all__ = [
     'RequiresPermissions',
     'GuildOnly',
     'SpecificGuildOnly',
+    'RequiresClearance',
     'add_check',
     'requires_permissions',
     'guild_only',
-    'guild_must_be_id'
+    'guild_must_be_id',
+    'requires_clearance'
 ]
 
 
@@ -95,14 +97,37 @@ class SpecificGuildOnly(Check):
 
     def desc(self, ctx: 'Context') -> str:
         if ctx.is_dm() or ctx.guild.id != self.guild_id:
-            return f"{self.EMOTE_NO} is not available in this server"
+            return f"{self.EMOTE_NO} Is not available in this server"
         else:
-            return f"{self.EMOTE_YES} is available in this server"
+            return f"{self.EMOTE_YES} Is available in this server"
 
     def modify_func(self, func: Callable[..., Awaitable[Any]]):
         func._car_guild_id = self.guild_id # type: ignore[attr-defined]
 
-#TODO: annotate properly
+
+class RequiresClearance(Check):
+    def __init__(self, level: int):
+        self.level = level
+
+    def check(self, ctx: 'Context') -> None:
+        if ctx.author.id not in ctx.bot.user_admin:
+            ctx.bot.user_admin.insert(ctx.author.id)
+
+        if ctx.bot.user_admin.select('clearance', "where user_id=?",
+                                     (ctx.author.id,)) < self.level:
+            raise CheckError("You aren't allowed to use this command!")
+
+    def desc(self, ctx: 'Context') -> str:
+        if ctx.author.id not in ctx.bot.user_admin:
+            ctx.bot.user_admin.insert(ctx.author.id)
+
+        emote = self.emote(
+            ctx.bot.user_admin.select('clearance', "where user_id=?",
+                                      (ctx.author.id,)) >= self.level)
+
+        return f"{emote} Requires special permissions"
+
+
 def add_check(check: Check) -> Callable:
     def decorator(func: Optional[Callable[..., Awaitable[Any]]] = None):
         if func is not None:
@@ -123,4 +148,7 @@ def guild_only() -> Callable:
 
 def guild_must_be_id(guild_id: int) -> Callable:
     return add_check(SpecificGuildOnly(guild_id))
+
+def requires_clearance(level: int) -> Callable:
+    return add_check(RequiresClearance(level))
 

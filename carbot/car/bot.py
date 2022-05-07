@@ -6,8 +6,8 @@ from loguru import logger
 
 from .cog_handler import CogHandler
 from .context import TextContext, SlashContext
-from .db import PersistentStorage, Table, Column
-from .enums import CommandType
+from .db import DBTable, DBColumn
+from .enums import CommandType, ClearanceLevel
 
 
 __all__ = [
@@ -23,18 +23,21 @@ class Bot(discord.Client):
         self.cog_handler = CogHandler(self)
 
         self.con = sqlite3.connect('car.db')
-        self.guild_settings = PersistentStorage(Table(
-            self.con, 'guild_settings', (
-                Column('guild_id', 0, primary_key=True),
-                Column('prefix', "]"),
-                Column('join_message_enabled', False),
-                Column('join_message', ""),
-                Column('leave_message_enabled', False),
-                Column('leave_message', ""),
-                Column('joinleave_channel', 0),
-                Column('pinboard_enabled', False),
-                Column('pinboard_channel', 0)
-            )        
+        self.guild_settings = DBTable(self.con, 'guild_settings', (
+            DBColumn('guild_id', 0, is_primary=True),
+            DBColumn('prefix', "]"),
+            DBColumn('join_message_enabled', False),
+            DBColumn('join_message', ""),
+            DBColumn('leave_message_enabled', False),
+            DBColumn('leave_message', ""),
+            DBColumn('joinleave_channel', 0),
+            DBColumn('pinboard_enabled', False),
+            DBColumn('pinboard_channel', 0)
+        ))
+
+        self.user_admin = DBTable(self.con, 'user_admin', (
+            DBColumn('user_id', 0, is_primary=True),
+            DBColumn('clearance', 0)
         ))
 
     async def process_message(self, msg: discord.Message) -> None:
@@ -45,10 +48,22 @@ class Bot(discord.Client):
         if msg.author.bot:
             return
 
+        if msg.author.id not in self.user_admin:
+            self.user_admin.insert(msg.author.id)
+
+        if self.user_admin.select('clearance', 'where user_id=?',
+                                  (msg.author.id,)) <= ClearanceLevel.BANNED:
+            return
+
         if msg.guild is None:
             prefix = "]"
         else:
-            prefix = self.guild_settings.cell(msg.guild.id, 'prefix')
+            if msg.guild.id not in self.guild_settings:
+                self.guild_settings.insert(msg.guild.id)
+
+            prefix = self.guild_settings.select('prefix', 'where guild_id=?',
+                                                (msg.guild.id,))
+
         if not msg.content.startswith(prefix) \
                 or len(msg.content) <= len(prefix):
             return
@@ -76,6 +91,9 @@ class Bot(discord.Client):
 
     async def on_message_edit(self, old: discord.Message,
                               new: discord.Message) -> None:
+        if old.content == new.content:
+            return
+
         await self.process_message(new)
 
     async def process_interaction(self, interaction: discord.Interaction

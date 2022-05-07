@@ -33,7 +33,7 @@ class Simulation(car.Cog):
         desc = (
             "```css\n[6* results]\n"
             f"Expected amount    = {expected:.2f}\n"
-            f"P(No rateups)       = {no_rateup*100:.2f}%\n"
+            f"P(No rateups)      = {no_rateup*100:.2f}%\n"
             f"P(Any rateup)      = {any_rateup*100:.2f}%\n"
             f"P(Specific rateup) = {specific_rateup*100:.2f}%\n"
             f"P(Both rateups)    = {both_rateup*100:.2f}%\n"

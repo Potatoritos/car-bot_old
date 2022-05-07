@@ -15,22 +15,21 @@ class Tokenizer:
 
     def _add_char(self) -> None:
         if self.text[self.index] == '\\' and self.index < len(self.text)-1:
-            # for python 3.10
-            # match self.text[self.index + 1]:
-                # case '\\' | '"' as escaped:
-                    # self.word.append(escaped)
-                # case 'n':
-                    # self.word.append('\n')
-                # case _ as escaped:
-                    # self.word.append('\\' + escaped)
+            match self.text[self.index + 1]:
+                case '\\' | '"' as escaped:
+                    self.word.append(escaped)
+                case 'n':
+                    self.word.append('\n')
+                case _ as escaped:
+                    self.word.append('\\' + escaped)
 
-            c = self.text[self.index+1]
-            if c == '\\' or c == '"':
-                self.word.append(c)
-            elif c == 'n':
-                self.word.append('\n')
-            else:
-                self.word.append('\\' + c)
+            # c = self.text[self.index+1]
+            # if c == '\\' or c == '"':
+                # self.word.append(c)
+            # elif c == 'n':
+                # self.word.append('\n')
+            # else:
+                # self.word.append('\\' + c)
 
             self.index += 1
 

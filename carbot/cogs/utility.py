@@ -1,5 +1,6 @@
 import asyncio
 import os.path
+import time
 from typing import Annotated as A, Optional
 
 import discord
@@ -30,15 +31,21 @@ class Utility(car.Cog):
                 self.taken_indices.add(i)
                 return name
 
+    @car.mixed_command()
+    async def print(self, ctx: car.Context, text: str):
+        """b13i5n"""
+        print(text)
+        await ctx.respond('a')
+
     @car.mixed_command(max_concurrency=1)
     async def ytdlp(
         self,
         ctx: car.Context,
-        url: A[str, car.ToURL()],
+        url: A[str, car.ToURL(allowed_sites=car.YTDL_ALLOWED_SITES)],
         file_format: A[
             Optional[str],
             "the format of the downloaded file",
-            car.FromChoices({'mp4': 'mp4', 'webm': 'webm'})
+            car.FromChoices({'mp4': 'mp4', 'webm': 'webm', 'mp3': 'mp3'})
         ] = 'mp4'
     ):
         """Downloads audio/video with yt-dlp"""
@@ -47,12 +54,31 @@ class Utility(car.Cog):
         file_name = f"dl/ytdlp.{file_format}"
         file_size_bytes: int
 
+        last_update_secs = 0
+
         def progress_hook(data):
-            nonlocal file_size_bytes
+            nonlocal file_size_bytes, last_update_secs
             print(f"PROGRESS HOOK {data['filename']=}, {data['status']=}, {data['total_bytes']=}")
             if data['status'] == 'downloading':
                 print(data['tmpfilename'])
-                pass
+
+                if time.time() - last_update_secs >= 1:
+                    # async def send_progress(self):
+                        # nonlocal ctx, data
+                        # await ctx.
+
+                    if 'estimated_bytes' in data:
+                        percentage = data['total_bytes'] / data['estimated_bytes']
+                        print(percentage)
+                    else:
+                        print('wtf')
+                    last_update_secs = time.time()
+                    # e = discord.Embed(
+                        # description=f"`1/3` Downloading... `{percentage:.1f}%`")
+                    # asyncio.create_task(
+                        # ctx.edit_response(embed=e)
+                    # )
+
             elif data['status'] == 'finished':
                 file_size_bytes = data['total_bytes']
 
@@ -78,8 +104,8 @@ class Utility(car.Cog):
                         )
                     )
                 elif file_format in ('mp3',):
-                    file_format = 'best' if file_format == 'best_audio' \
-                        else file_format
+                    # file_format = 'best' if file_format == 'best_audio' \
+                        # else file_format
 
                     ydl.add_post_processor(
                         yt_dlp.postprocessor.FFmpegExtractAudioPP(
@@ -97,9 +123,7 @@ class Utility(car.Cog):
 
         await asyncio.to_thread(download)
 
-        upload_limits_bytes = [8e6, 8e6, 5e7, 1e8]
-
-        if file_size_bytes < upload_limits_bytes[ctx.guild.premium_tier]:
+        if file_size_bytes < ctx.upload_limit_bytes:
             await ctx.respond(file=discord.File(file_name, f"ytdlp.{file_format}"))
         else:
             pass

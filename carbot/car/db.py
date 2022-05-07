@@ -1,120 +1,135 @@
-from typing import Any, Union
+import json
+from typing import Any, Callable, ValuesView
 import sqlite3
 
 
-# TODO: properly annotate types instead of just using Any
-class Column:
-    def __init__(self, name: str, default: Any, *,
-                 primary_key: bool = False):
-        self.name = name
+__all__ = [
+    'DBColumn',
+    'DBTable',
+]
+
+
+class DBType:
+    def __init__(self, sql_name: str,
+                 convert_to: Callable[[Any], Any] = lambda x: x,
+                 convert_from: Callable[[Any], Any] = lambda x: x):
+        self.sql_name = sql_name
+        self.convert_to = convert_to
+        self.convert_from = convert_from
+
+json_type = DBType('JSON', lambda x: json.dumps(x), lambda x: json.loads(x))
+
+db_types = {
+    int: DBType('INTEGER'),
+    bool: DBType('INTEGER', lambda x: int(x), lambda x: bool(x)),
+    float: DBType('FLOAT'),
+    str: DBType('STRING'),
+    list: json_type,
+    dict: json_type
+}
+
+
+class DBColumn:
+    def __init__(self, key: str, default: Any, *, is_primary=False,
+                 is_unique=False):
+        self.key = key
         self.default = default
-        self.primary_key = primary_key
+        self.data_type = db_types[type(self.default)]
+        self.is_primary = is_primary
+        self.is_unique = is_unique
 
-    def sql_var(self) -> str:
-        types = {
-            int: "INTEGER",
-            bool: "INTEGER",
-            float: "REAL",
-            str: "TEXT"
-        }
-        pr = "PRIMARY KEY" if self.primary_key else ""
-        return f"{self.name} {types[type(self.default)]} {pr}"
+    @property
+    def sql_def(self) -> str:
+        if self.is_primary:
+            constraint = "PRIMARY KEY"
+        elif self.is_unique:
+            constraint = "UNIQUE"
+        else:
+            constraint = ""
+        
+        return f"{self.key} {self.data_type.sql_name} {constraint}"
 
 
-class Table:
+class DBTable:
     def __init__(self, con: sqlite3.Connection, name: str,
-                 columns: tuple[Column, ...]):
-        assert columns[0].primary_key
+                 columns: tuple[DBColumn, ...]):
+        assert columns[0].is_primary
+
+        self.columns = {c.key: c for c in columns}
         self.con = con
-        self.columns = {c.name: c for c in columns}
-        self.primary_key = columns[0].name
+        self.primary_key = columns[0].key
         self.name = name
 
-        cur = con.cursor()
-        cur.execute(f"CREATE TABLE IF NOT EXISTS {self.name} ("
-                    + ", ".join(c.sql_var() for c in self.columns.values())
-                    + ")")
-        cur.close()
-        con.commit()
+        self.con.execute(f"CREATE TABLE IF NOT EXISTS {self.name}("
+                         + ", ".join(c.sql_def for c in self.columns.values())
+                         + ")")
+        self.con.commit()
 
     def __contains__(self, key: Any) -> bool:
-        cur = self.con.cursor()
-        cur.execute(f"SELECT * FROM {self.name} WHERE "
-                    f"{self.primary_key} = ?", (key,))
-        res = cur.fetchone()
-        cur.close()
-        return res is not None
+        return self.con.execute(f"SELECT * FROM {self.name} WHERE "
+                                f"{self.primary_key} = ?", (key,)).fetchone() \
+            is not None
 
-    def cell(self, key: Any, column_name: str) -> Any:
-        if column_name not in self.columns:
-            raise KeyError(f"Invalid column name: '{column_name}'")
-        cur = self.con.cursor()
-        cur.execute(f"SELECT {column_name} FROM {self.name} WHERE "
-                    f"{self.primary_key} = ?", (key,))
-        res = cur.fetchone()
-        cur.close()
-        return res[0]
+    def select(self, to_select: str, conditions: str = '', tup: tuple = (), *,
+               flatten: bool = True):
 
-    def row(self, key: Any) -> dict[str, Any]:
-        cur = self.con.cursor()
-        cur.execute(f"SELECT * FROM {self.name} WHERE "
-                    f"{self.primary_key} = ?", (key,))
-        res = cur.fetchone()
-        cur.close()
-        return {name: val for name, val in zip(self.columns, res)}
+        query = f"SELECT {to_select} FROM {self.name} {conditions}"
 
-    def update(self, key: Any, column_name: str, new_val: Any,
+        res = self.con.execute(query, tup).fetchall()
+
+        if to_select == '*':
+            spl = self.columns.keys()
+        else:
+            spl = [col.strip() for col in to_select.split(',')]
+
+        res = [{col: self.columns[col].data_type.convert_from(data)
+                     for col, data in zip(spl, row)}
+               for row in res]
+
+        for row in res:
+            row = tuple()
+
+        if not flatten:
+            return res
+        
+        if len(res) == 1:
+            res = res[0]
+            if len(res) == 1:
+                return next(iter(res.values()))
+
+        return res
+
+    def update(self, key: Any, col: str, new_val: Any,
                commit: bool = True) -> None:
-        if column_name not in self.columns:
-            raise KeyError(f"Invalid column name: '{column_name}'")
-        cur = self.con.cursor()
-        cur.execute(f"UPDATE {self.name} SET {column_name} = ? WHERE "
-                    f"{self.primary_key} = ?", (new_val, key))
-        cur.close()
+        if col not in self.columns:
+            raise KeyError(f"Invalid column name: '{col}'")
+
+        new_val = self.columns[col].data_type.convert_to(new_val)
+
+        self.con.execute(f"UPDATE {self.name} SET {col} = ? WHERE "
+                         f"{self.primary_key} = ?", (new_val, key))
         if commit:
             self.con.commit()
 
-    def insert(self, key: Any, vals: tuple = ()) -> None:
-        if len(vals) == 0:
-            vals = tuple(col.default for col in self.columns.values()
-                         if not col.primary_key)
-        elif len(vals) != len(self.columns)-1:
+    def insert(self, *vals) -> sqlite3.Cursor:
+        if len(vals) == 1:
+            vals = (vals[0],) + tuple(
+                col.default for col in self.columns.values()
+                if not col.is_primary)
+
+        elif len(vals) != len(self.columns):
             raise ValueError
 
-        cur = self.con.cursor()
-        qs = ", ?" * len(vals)
-        cur.execute(f"INSERT OR IGNORE INTO {self.name} VALUES (?{qs})",
-                    (key,) + vals)
-        cur.close()
+        vals = tuple(col.data_type.convert_to(val)
+                for col, val in zip(self.columns.values(), vals))
+
+        qs = "?" + ", ?" * (len(vals)-1)
+        cur = self.con.execute(f"INSERT OR IGNORE INTO {self.name} VALUES ({qs})",
+                               vals)
         self.con.commit()
+        return cur
 
-
-class PersistentStorage:
-    def __init__(self, table: Table):
-        self.table = table
-        self.storage: dict[str, dict[str, Any]] = {}
-
-    def __contains__(self, key: Any) -> bool:
-        return key in self.table
-
-    def cell(self, key: Any, column_name: str) -> Any:
-        if key not in self.storage:
-            self.insert(key)
-        return self.storage[key][column_name]
-
-    def row(self, key: Any) -> dict[str, Any]:
-        if key not in self.storage:
-            self.insert(key)
-        return self.storage[key]
-
-    def update(self, key: Any, column_name: str, new_val: Any,
-               commit: bool = True) -> None:
-        if key not in self.storage:
-            self.insert(key)
-        self.table.update(key, column_name, new_val)
-        self.storage[key][column_name] = new_val
-
-    def insert(self, key: Any, vals: tuple = ()) -> None:
-        self.table.insert(key, vals)
-        self.storage[key] = self.table.row(key)
+    def delete(self, conditions: str, tup: tuple = ()) -> None:
+        self.con.execute(f"DELETE FROM {self.name} {conditions}")
+        self.con.commit()
 

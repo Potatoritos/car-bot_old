@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import time
 from typing import Any, Optional
+import urllib.parse
+
 import discord
 from loguru import logger
 
@@ -38,6 +40,9 @@ class Converter(ABC):
     @abstractmethod
     async def convert(self, ctx: Context, val: Any) -> Any:
         pass
+
+    async def convert_slash(self, ctx: Context, val: Any) -> Any:
+        return await self.convert(ctx, val)
 
     @abstractmethod
     def modify_slash_data(self, data: dict[str, Any]) -> None:
@@ -84,6 +89,12 @@ class FromChoices(Converter):
             raise ArgumentError(f"This argument must be {self.description}")
 
         return self.choices[val]
+
+    async def convert_slash(self, ctx: Context, val: Any) -> Any:
+        if val not in self.choices.values():
+            raise ArgumentError("Invalid choice! (probably because slash "
+                                "command list not updated)")
+        return val
 
     def modify_slash_data(self, data: dict[str, Any]) -> None:
         data['type'] = {
@@ -197,12 +208,24 @@ class ToURL(Converter):
 
     async def convert(self, ctx: Context, val: str) -> str:
         symbols = set(".-_~:/?#[]@!$&'()*+,;%=")
+        print(f"{val=}")
         if not all('a' <= c <= 'z' or 'A' <= c <= 'Z' \
-                   or '0' <= c <= '9' or c in symbols for c in val):
-            raise ArgumentError("This URL contains invalid characters!")
+                   or '0' <= c <= '9' or c in symbols for c in val) \
+                or not '.' in val:
+            raise ArgumentError("Invalid URL!")
 
         if not val.startswith('http'):
             val = f"https://{val}"
+
+        netloc = urllib.parse.urlparse(val).netloc
+        if netloc.startswith('www.'):
+            netloc = netloc[4:]
+
+        if netloc == '':
+            raise ArgumentError("Invalid URL!")
+
+        if self.allowed_sites is not None and netloc not in self.allowed_sites:
+            raise ArgumentError("Disallowed site!")
 
         return val
 

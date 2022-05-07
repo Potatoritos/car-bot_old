@@ -4,7 +4,8 @@ from enum import Enum
 __all__ = [
     'ChannelType',
     'CommandType',
-    'OptionType'
+    'OptionType',
+    'ClearanceLevel'
 ]
 
 class ChannelType(int, Enum):
@@ -36,4 +37,10 @@ class OptionType(int, Enum):
     ROLE = 8
     MENTIONABLE = 9
     NUMBER = 10
+
+class ClearanceLevel(int, Enum):
+    BANNED = -1
+    DEFAULT = 0
+    TRUSTED = 6
+    ADMIN = 9
 

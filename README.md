@@ -1,8 +1,11 @@
 my discord bot! (wip)
 
-# Running
+# Requirements
 
-Python version must be >=3.9
+* Python 3.10
+* ffmpeg
+
+# Running
 
 1. Set up virtual environment
 

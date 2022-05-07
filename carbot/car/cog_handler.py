@@ -195,6 +195,7 @@ class CogHandler:
         args: dict[str, Any] = {opt['name']: opt['value'] for opt in options
                                 if 'value' in opt}
         try:
+            print(args)
             for arg in cmd.args.values():
                 if arg.name not in args:
                     if arg.required:
@@ -203,16 +204,22 @@ class CogHandler:
                         break
                     else:
                         continue
+                # try:
+                ctx.args[arg.name] = args[arg.name]
+                # if not isinstance(ctx.args[arg.name], arg.arg_type):
+                # ctx.args[arg.name] = await arg.converter.convert(
+                                                        # ctx, args[arg.name])
                 try:
-                    ctx.args[arg.name] = args[arg.name]
-                    if not isinstance(ctx.args[arg.name], arg.arg_type):
-                        ctx.args[arg.name] = await arg.converter.convert(
-                                                        ctx, args[arg.name])
+                    ctx.args[arg.name] = await arg.converter.convert_slash(
+                                                ctx, ctx.args[arg.name])
                 except ArgumentError as e:
-                    logger.error(f"Slash command {cmd} ({ctx}) has invalid "
-                                 "arguments (probably because discord hasn't"
-                                 "updated the command list yet)")
-                    return
+                    e.highlight = arg.name
+                    raise e
+                # except ArgumentError as e:
+                    # logger.error(f"Slash command {cmd} ({ctx}) has invalid "
+                                 # "arguments (probably because discord hasn't"
+                                 # "updated the command list yet)")
+                    # return
 
             await cmd.run(ctx)
         except CarException as e:

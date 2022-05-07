@@ -60,6 +60,12 @@ class Context(metaclass=ABCMeta):
             raise ContextError("This command should be set to guild-only!")
         return self._guild
 
+    @property
+    def upload_limit_bytes(self) -> int:
+        if self._guild is None:
+            return 8e6
+        return [8e6, 8e6, 5e7, 1e8][self._guild.premium_tier]
+
     async def send(self, content: Optional[str] = None, **kwargs) -> Message:
         kwargs['allowed_mentions'] = kwargs.get('allowed_mentions',
                                                 AllowedMentions.none())
@@ -82,7 +88,7 @@ class Context(metaclass=ABCMeta):
         pass
 
     async def last_attachment(self) -> Attachment:
-        async for msg in self.channel.history(limit=100):
+        async for msg in self.channel.history(limit=50):
             if len(msg.attachments) != 0:
                 return msg.attachments[0]
 
