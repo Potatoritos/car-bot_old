@@ -141,10 +141,10 @@ class InRange(Converter):
     @property
     def description(self) -> str:
         desc = []
-        if self.upper is not None:
-            desc.append(f"≤ {self.upper}")
         if self.lower is not None:
             desc.append(f"≥ {self.lower}")
+        if self.upper is not None:
+            desc.append(f"≤ {self.upper}")
 
         return " and ".join(desc)
 

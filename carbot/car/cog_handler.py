@@ -169,6 +169,7 @@ class CogHandler:
 
     async def run_command_slash(self, ctx: SlashContext, data: dict[str, Any]
                                 ) -> None:
+
         names: list[str] = []
         options: list[dict] = []
 
@@ -177,7 +178,10 @@ class CogHandler:
             if 'options' not in data:
                 break
             options = data['options']
-            data = data['options'][0]
+
+            if len(options) == 0:
+                break
+            data = options[0]
 
         name = ' '.join(names)
         cmd = self.slash_commands.get(name)
@@ -185,6 +189,8 @@ class CogHandler:
             logger.error(f"Slash command '{name}' not recognized (probably "
                          "because discord hasn't updated the command list yet")
             return
+
+        logger.debug(f"Slash command run; {cmd=}, {ctx=}")
 
         try:
             cmd.run_checks(ctx)
@@ -195,7 +201,6 @@ class CogHandler:
         args: dict[str, Any] = {opt['name']: opt['value'] for opt in options
                                 if 'value' in opt}
         try:
-            print(args)
             for arg in cmd.args.values():
                 if arg.name not in args:
                     if arg.required:
@@ -227,7 +232,8 @@ class CogHandler:
 
     async def run_command_text(self, ctx: TextContext, cmd: TextCommand,
                                content: str) -> None:
-        print("RUN COMMAND")
+        logger.debug(f"Text command run; {cmd=}, {ctx=}")
+
         try:
             cmd.run_checks(ctx)
         except CheckError as e:

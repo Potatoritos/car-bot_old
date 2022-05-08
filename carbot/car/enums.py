@@ -41,6 +41,6 @@ class OptionType(int, Enum):
 class ClearanceLevel(int, Enum):
     BANNED = -1
     DEFAULT = 0
-    TRUSTED = 6
-    ADMIN = 9
+    TRUSTED = 2
+    ADMIN = 3
 

@@ -71,7 +71,7 @@ class DBTable:
             is not None
 
     def select(self, to_select: str, conditions: str = '', tup: tuple = (), *,
-               flatten: bool = True):
+               flatten: bool = True) -> Any:
 
         query = f"SELECT {to_select} FROM {self.name} {conditions}"
 
@@ -99,17 +99,18 @@ class DBTable:
 
         return res
 
-    def update(self, key: Any, col: str, new_val: Any,
-               commit: bool = True) -> None:
-        if col not in self.columns:
-            raise KeyError(f"Invalid column name: '{col}'")
+    def update(self, key: Any, **to_set: Any) -> None:
+        # if col not in self.columns:
+            # raise KeyError(f"Invalid column name: '{col}'")
 
-        new_val = self.columns[col].data_type.convert_to(new_val)
+        updates = ', '.join(f"{col} = ?" for col in to_set)
 
-        self.con.execute(f"UPDATE {self.name} SET {col} = ? WHERE "
-                         f"{self.primary_key} = ?", (new_val, key))
-        if commit:
-            self.con.commit()
+        new_vals = tuple(self.columns[col].data_type.convert_to(new_val)
+                         for col, new_val in to_set.items())
+
+        self.con.execute(f"UPDATE {self.name} SET {updates} WHERE "
+                         f"{self.primary_key} = ?", new_vals + (key,))
+        self.con.commit()
 
     def insert(self, *vals) -> sqlite3.Cursor:
         if len(vals) == 1:
@@ -130,6 +131,6 @@ class DBTable:
         return cur
 
     def delete(self, conditions: str, tup: tuple = ()) -> None:
-        self.con.execute(f"DELETE FROM {self.name} {conditions}")
+        self.con.execute(f"DELETE FROM {self.name} {conditions}", tup)
         self.con.commit()
 

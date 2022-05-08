@@ -8,7 +8,7 @@ __all__ = [
     'zwsp',
     'zwsp_md',
     'without_md_formatting',
-    'temp_file'
+    's_to_sexagesimal'
 ]
 
 
@@ -34,12 +34,12 @@ def zwsp_md(s: str) -> str:
 def without_md_formatting(s: str) -> str:
     return s.replace('*', '').replace('`', '')
 
-def temp_file() -> str:
-    i = 0
-    while i := i+1:
-        name = f"dl/temp_file_{i}"
-        if not exists(f"dl/temp_file_{i}"):
-            return name
-
-    return ""
+def s_to_sexagesimal(s: int | float) -> str:
+    s = int(s)
+    if s < 600:
+        return f"{s//60%60}:{s%60:02}"
+    elif s < 3600:
+        return f"{s//60%60:02}:{s%60:02}"
+    else:
+        return f"{s//3600}:{s//60%60:02}:{s%60:02}"
 
