@@ -71,7 +71,14 @@ class Argument:
 
     @property
     def slash_description(self) -> str:
-        return without_md_formatting(self.description)
+        desc = without_md_formatting(self.description)
+        if len(desc) <= 100:
+            return desc
+        elif self._description is None:
+            return self.converter.slash_description + self.desc_suffix
+        else:
+            return f"{self.converter.slash_description}—{self._description}"\
+                + self.desc_suffix
     
     @property
     def description(self) -> str:
@@ -80,20 +87,25 @@ class Argument:
         else:
             desc = f"**{self.converter.description}**—{self._description}"
 
-        if not self.required:
-            if self.default is not None:
-                default = self.default
+        return desc + self.desc_suffix
 
-                if default is True:
-                    default = "yes"
-                elif default is False:
-                    default = "no"
+    @property
+    def desc_suffix(self) -> str:
+        if self.required:
+            return ""
+        
+        if self.default is not None:
+            default = self.default
 
-                desc += f" *(default: {default})*"
-            else:
-                desc += f" *(optional)*"
-                
-        return desc
+            if default is True:
+                default = "yes"
+            elif default is False:
+                default = "no"
+
+            return f" *(default: {default})*"
+        else:
+            return f" *(optional)*"
+
 
     def json(self) -> dict[str, Any]:
         data = {

@@ -4,6 +4,7 @@ import sqlite3
 from typing import Annotated as A, Optional, Any
 
 import discord
+from gtts import gTTS
 from loguru import logger
 import mutagen.mp3
 import mutagen.wave
@@ -228,6 +229,17 @@ class Sound(car.Cog):
             car.DBColumn('verified', False)
         ))
 
+    @staticmethod
+    def free_path(name: str, file_type: str) -> str:
+        path = f"./sfx/{name}.{file_type}"
+
+        i = 0
+        while os.path.exists(path):
+            i += 1
+            path = f"./sfx/{name}_{i}.{file_type}"
+
+        return path
+
     def get_sound(self, name: str, select: str = '*') -> dict[str, Any]:
         sound = self.sfx_list.select(select, 'WHERE name=?', (name.lower(),))
         if len(sound) == 0:
@@ -263,7 +275,7 @@ class Sound(car.Cog):
                 return
 
             if count_seconds >= 300:
-                await sesh.disconnect()
+                await sesh.leave()
                 return
 
             await asyncio.sleep(1)
@@ -286,15 +298,17 @@ class Sound(car.Cog):
     @car.slash_command_group(name="sfx")
     async def _(self, ctx): pass
 
+    sfx_categories = {
+        'Songs': 'Songs', 'Clips': 'Clips', 'Sounds': 'Sounds',
+        'Ambient': 'Ambient', 'None': 'Uncategorized'
+    }
+
     @car.mixed_command(slash_name="sfx add")
     async def sfxadd(
         self,
         ctx: car.Context,
         name: str,
-        category: A[str, car.FromChoices({
-            'Songs': 'Songs', 'Clips': 'Clips', 'Sounds': 'Sounds',
-            'Ambient': 'Ambient', 'None': 'Uncategorized'
-        })]
+        category: A[str, car.FromChoices(sfx_categories)]
     ):
         """Adds a sound effect (uses the most recently uploaded file)"""
         name = name.lower()
@@ -319,12 +333,7 @@ class Sound(car.Cog):
                 logger.error(f"{attachment.content_type=} not handled!")
                 raise ValueError
 
-        path = f'./sfx/{name}.{file_type}'
-
-        i = 0
-        while os.path.exists(path):
-            i += 1
-            path = f"./sfx/{name}_{i}.{file_type}"
+        path = self.free_path(name, file_type)
 
         await ctx.defer()
 
@@ -354,10 +363,7 @@ class Sound(car.Cog):
     async def sfxaddyt(
         self, ctx,
         name: str,
-        category: A[str, car.FromChoices({
-            'Songs': 'Songs', 'Clips': 'Clips', 'Sounds': 'Sounds',
-            'Ambient': 'Ambient', 'None': 'Uncategorized'
-        })],
+        category: A[str, car.FromChoices(sfx_categories)],
         url: A[str, "the URL of the youtube video to download"]
     ):
         """Adds a sound effect (uses a youtube link)"""
@@ -370,7 +376,7 @@ class Sound(car.Cog):
 
         self.check_name(name)
 
-        path = f'./sfx/{name}.mp3'
+        path = self.free_path(name, 'mp3')
 
         i = 0
         while os.path.exists(path):
@@ -546,11 +552,14 @@ class Sound(car.Cog):
     ):
         """Plays a sound effect"""
 
-        if ctx.author.voice is None:
+        if ctx.author.voice is None and join_vc:
             raise car.CommandError("You must be in a voice channel!")
 
         vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         if vc is None or not vc.is_connected():
+            if not join_vc:
+                raise car.CommandError("I'm not in a voice channel!")
+
             vc = await ctx.author.voice.channel.connect()
 
         if join_vc and vc.channel != ctx.author.voice.channel:
@@ -569,6 +578,152 @@ class Sound(car.Cog):
 
         desc = (
             f":musical_note: Playing sound: `{name}` [volume: {sesh.volume}%] "
+            f"[speed: {sesh.speed}x]"
+        )
+        if repeat:
+            desc += " [repeating]"
+        await ctx.respond(embed=discord.Embed(description=desc))
+
+    tts_languages = {
+        "Arabic": 'ar',
+        "English (AU)": 'en:com.au',
+        "English (US)": 'en',
+        "English (UK)": 'en:co.uk',
+        "English (IN)": 'en:co.in',
+        "French (CA)": 'fr:ca',
+        "French (FR)": 'fr',
+        "German": 'de',
+        "Greek": 'el',
+        "Hebrew": 'iw',
+        "Hindi": 'hi',
+        "Italian": 'it',
+        "Japanese": 'ja',
+        "Korean": 'ko',
+        "Latin": 'la',
+        "Russian": 'ru',
+        "Mandarin (CN)": 'zh-CN',
+        "Mandarin (TW)": 'zh-TW',
+        "Norwegian": 'no',
+        "Spanish (MX)": 'es:com.mx',
+        "Spanish (ES)": 'es',
+        "Swedish": 'sv',
+        "Thai": 'th',
+        "Ukranian": 'uk',
+        "Vietnamese": 'vi'
+    }
+
+    @car.mixed_command(slash_name="sfx addtts", aliases=["addtts"])
+    async def sfxaddtts(
+        self, ctx,
+        name: str,
+        category: A[str, car.FromChoices(sfx_categories)],
+        text: str,
+        language: A[
+            Optional[str],
+            car.FromChoices(tts_languages)
+        ] = 'en',
+    ):
+        """Adds text-to-speech to the sound effect list"""
+        path = self.free_path(name, 'mp3')
+
+        def generate_tts():
+            spl = language.split(':')
+
+            kwargs = {'lang': spl[0]}
+            if len(spl) > 1:
+                kwargs['tld'] = spl[1]
+
+            gTTS(text, **kwargs).save(path)
+
+        await ctx.defer()
+
+        await asyncio.to_thread(generate_tts)
+
+        length = mutagen.mp3.MP3(path).info.length
+
+        self.sfx_list.insert(id=None, name=name, category=category, path=path,
+                             length=length, user_id=ctx.author.id,
+                             verified=False)
+        logger.debug(
+            f"Sound effect added (tts): {name=}, {category=}, {path=}")
+
+        e = discord.Embed(description=f"Sound effect `{name}` added!")
+        await ctx.respond(embed=e)
+
+    @car.mixed_command(slash_name="sfx tts", aliases=["sfxtts"])
+    async def tts(
+        self, ctx,
+        text: str,
+        language: A[
+            Optional[str],
+            car.FromChoices(tts_languages)
+        ] = 'en',
+        repeat: Optional[bool] = False,
+        volume: A[Optional[float], car.ToFloat() | car.InRange(0, 200)] = None,
+        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 3)] = None,
+        upload: A[
+            Optional[bool],
+            "if specified, just uploads the tts (does not work with vol/speed)"
+        ] = False,
+        join_vc: A[
+            Optional[bool],
+            "specifies whether I should join your vc"
+        ] = True
+    ):
+        """Plays text-to-speech in a voice channel"""
+
+        if not upload:
+            vc = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+            if vc is None or not vc.is_connected():
+                if not join_vc:
+                    raise car.CommandError("I must be in a voice channel!")
+
+                vc = await ctx.author.voice.channel.connect()
+
+            if join_vc and vc.channel != ctx.author.voice.channel:
+                await vc.disconnect()
+                vc = await ctx.author.voice.channel.connect()
+
+        path = "./sfx/tts.mp3"
+
+        def generate_tts():
+            spl = language.split(':')
+
+            kwargs = {'lang': spl[0]}
+            if len(spl) > 1:
+                kwargs['tld'] = spl[1]
+
+            gTTS(text, **kwargs).save(path)
+
+        await ctx.defer()
+
+        await asyncio.to_thread(generate_tts)
+
+        if upload:
+            await ctx.respond(file=discord.File(path))
+            return
+
+        length = mutagen.mp3.MP3(path).info.length
+
+        if ctx.guild.id not in self.sessions:
+            self.sessions[ctx.guild.id] = SFXSession()
+
+        sesh = self.sessions[ctx.guild.id]
+
+        sound = {
+            'id': 99999999,
+            'name': "[tts]",
+            'category': "Uncategorized",
+            'path': "./sfx/tts.mp3",
+            'length': length,
+            'user_id': ctx.author.id,
+            'verified': False
+        }
+
+        sesh.play(sound, vc=vc, volume=volume, repeat=repeat, speed=speed)
+
+        desc = (
+            f":musical_note: Playing TTS [volume: {sesh.volume}%] "
             f"[speed: {sesh.speed}x]"
         )
         if repeat:

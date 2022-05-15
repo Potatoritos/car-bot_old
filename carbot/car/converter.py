@@ -56,6 +56,10 @@ class Converter(ABC):
     def description(self) -> str:
         pass
 
+    @property
+    def slash_description(self) -> str:
+        return self.description
+
 
 class JoinedConverter(Converter):
     def __init__(self):
@@ -112,6 +116,10 @@ class FromChoices(Converter):
     @property
     def description(self) -> str:
         return join_last([f"`{name}`" for name in self.choices], 'or')
+
+    @property
+    def slash_description(self) -> str:
+        return "from the list of choices"
 
 
 class InRange(Converter):
