@@ -11,7 +11,7 @@ def main():
     logger.add(sys.stderr, level="DEBUG" if config.DEBUG else "INFO")
     bot = car.Bot()
 
-    for cog_cls in config.cogs_to_load:
+    for cog_cls in cogs.to_load:
         bot.cog_handler.add_cog_class(cog_cls)
         bot.cog_handler.load_cog(cog_cls.__name__)
 

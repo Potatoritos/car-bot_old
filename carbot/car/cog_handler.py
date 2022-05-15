@@ -50,7 +50,8 @@ class CogHandler:
 
         for text_cmd in self.cogs[cog_name].text_commands:
             self._load_text_command(text_cmd)
-        for slash_cmd in self.cogs[cog_name].slash_commands:
+        for slash_cmd in sorted(self.cogs[cog_name].slash_commands,
+                                key=lambda x: x.name):
             self._load_slash_command(slash_cmd)
 
         for listener in self.cogs[cog_name].listeners:
@@ -81,11 +82,13 @@ class CogHandler:
             self.text_aliases[alias] = cmd 
 
     def _unload_text_command(self, cmd_name: str) -> None:
+        logger.debug(f"Loading text command {cmd}")
         for alias in self.text_commands[cmd_name].aliases:
             del self.text_aliases[alias]
         del self.text_commands[cmd_name]
 
     def _load_slash_command(self, cmd: SlashCommand) -> None:
+        logger.debug(f"Loading slash command {cmd}")
         if cmd.name in self.slash_commands:
             raise CogError(f"Duplicate command name! {cmd}")
         self.slash_commands[cmd.name] = cmd

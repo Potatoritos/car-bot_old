@@ -206,18 +206,22 @@ class ToString(Converter):
 
 
 class ToSeconds(Converter):
+    def __init__(self, allow_negative: bool = False):
+        self.allow_negative = allow_negative
+
     async def convert(self, ctx: Context, val: str) -> float:
         try:
             return float(val)
         except ValueError:
             spl = val.split(':')
+            res = 0
 
             try:
                 match len(spl):
                     case 2:
-                        return 60*float(spl[0]) + float(spl[1])
+                        res = 60*float(spl[0]) + float(spl[1])
                     case 3:
-                        return 3600*int(spl[0]) + 60*float(spl[1]) \
+                        res = 3600*int(spl[0]) + 60*float(spl[1]) \
                             + float(spl[2])
                     case _:
                         raise ValueError
@@ -225,13 +229,17 @@ class ToSeconds(Converter):
             except ValueError:
                 raise ArgumentError(f"This argument must be {self.description}!")
 
+            if res < 0 and not self.allow_negative:
+                raise ArgumentError(f"This timestamp must be positive!")
+
+            return res
 
     def modify_slash_data(self, data: dict[str, Any]) -> None:
         data['type'] = OptionType.STRING
 
     @property
     def description(self) -> str:
-        return "a timestamp (in seconds or HH:MM:SS.ms)"
+        return "a timestamp/duration (in seconds or HH:MM:SS.ms)"
 
 
 class ToURL(Converter):
