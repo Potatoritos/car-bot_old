@@ -1,4 +1,5 @@
 # from .test_cog import TestCog
+from .admin import Admin
 from .guild import Guild
 from .image import Image
 from .meta import Meta

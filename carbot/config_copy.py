@@ -1,6 +1,7 @@
 import cogs
 
 cogs_to_load = (
+    cogs.Admin,
     cogs.Guild,
     cogs.Image,
     cogs.Meta,

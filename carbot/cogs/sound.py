@@ -695,8 +695,7 @@ class Sound(car.Cog):
                              length=length, user_id=user_id or ctx.author.id,
                              verified=False)
 
-        logger.debug(f"sfx manually added: {name=}, {category=}, {path=}")
-
+        logger.info(f"sfx manually added: {name=}, {category=}, {path=}")
         await ctx.respond(f"added: {name=}, {category=}, {path=}")
 
 
