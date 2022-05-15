@@ -121,6 +121,10 @@ class Command:
         if self.parent_cog is None:
             raise CogError("This command has not been initialized properly!")
 
+        if ctx.guild is not None:
+            if ctx.guild.id not in ctx.bot.guild_settings:
+                ctx.bot.guild_settings.insert(guild_id=ctx.guild.id)
+
         self.concurrency += 1
 
         try:

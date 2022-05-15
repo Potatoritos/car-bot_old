@@ -21,10 +21,12 @@ __all__ = [
     'ToInt',
     'ToFloat',
     'ToString',
+    'ToSeconds',
     'ToURL',
     'ToBool',
     'ToMember',
     'ToRole',
+    'ToVoiceChannel',
     'ToTextChannel',
     'default_converters'
 ]
@@ -200,6 +202,35 @@ class ToString(Converter):
     @property
     def description(self) -> str:
         return "a string"
+
+
+class ToSeconds(Converter):
+    async def convert(self, ctx: Context, val: str) -> float:
+        try:
+            return float(val)
+        except ValueError:
+            spl = val.split(':')
+
+            try:
+                match len(spl):
+                    case 2:
+                        return 60*float(spl[0]) + float(spl[1])
+                    case 3:
+                        return 3600*int(spl[0]) + 60*float(spl[1]) \
+                            + float(spl[2])
+                    case _:
+                        raise ValueError
+                        
+            except ValueError:
+                raise ArgumentError(f"This argument must be {self.description}!")
+
+
+    def modify_slash_data(self, data: dict[str, Any]) -> None:
+        data['type'] = OptionType.STRING
+
+    @property
+    def description(self) -> str:
+        return "a timestamp (in seconds or HH:MM:SS.ms)"
 
 
 class ToURL(Converter):
@@ -380,6 +411,39 @@ class ToTextChannel(Converter):
         return "a text channel"
 
 
+class ToVoiceChannel(Converter):
+    async def convert(self, ctx: Context, val: str) -> discord.VoiceChannel:
+        if ctx.guild is None:
+            logger.warning("Non-DM Argument found in non-guild-only command!")
+            raise CheckError("You must be in a server to use this command!")
+
+        channel_id = None
+        try:
+            channel_id = int(val)
+        except ValueError:
+            pass
+        if val.startswith('<#') and val.endswith('>'):
+            try:
+                channel_id = int(val[2:-1])
+            except ValueError:
+                pass
+        if channel_id is not None:
+            c = discord.utils.get(ctx.guild.voice_channels, id=channel_id)
+            if c is not None:
+                return c
+
+        _, idx = fuzzy_match_one(val, [c.name for c in ctx.guild.voice_channels])
+        return ctx.guild.voice_channels[idx]
+
+    def modify_slash_data(self, data: dict[str, Any]) -> None:
+        data['type'] = OptionType.CHANNEL
+        data['channel_types'] = [ChannelType.GUILD_VOICE]
+
+    @property
+    def description(self) -> str:
+        return "a voice channel"
+
+
 default_converters = {
     int: ToInt(),
     str: ToString(),
@@ -387,7 +451,8 @@ default_converters = {
     float: ToFloat(),
     discord.Member: ToMember(),
     discord.Role: ToRole(),
-    discord.TextChannel: ToTextChannel()
+    discord.TextChannel: ToTextChannel(),
+    discord.VoiceChannel: ToVoiceChannel()
 }
 
 # async def convert(ctx: Context, val: str, convert_to: Type[Any]) -> Any:

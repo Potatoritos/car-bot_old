@@ -11,11 +11,11 @@ __all__ = [
 
 class DBType:
     def __init__(self, sql_name: str,
-                 convert_to: Callable[[Any], Any] = lambda x: x,
-                 convert_from: Callable[[Any], Any] = lambda x: x):
+                 to_db: Callable[[Any], Any] = lambda x: x,
+                 to_py: Callable[[Any], Any] = lambda x: x):
         self.sql_name = sql_name
-        self.convert_to = convert_to
-        self.convert_from = convert_from
+        self.to_db = to_db
+        self.to_py = to_py
 
 json_type = DBType('JSON', lambda x: json.dumps(x), lambda x: json.loads(x))
 
@@ -58,6 +58,7 @@ class DBTable:
         self.columns = {c.key: c for c in columns}
         self.con = con
         self.primary_key = columns[0].key
+        columns[0].default = None
         self.name = name
 
         self.con.execute(f"CREATE TABLE IF NOT EXISTS {self.name}("
@@ -82,7 +83,7 @@ class DBTable:
         else:
             spl = [col.strip() for col in to_select.split(',')]
 
-        res = [{col: self.columns[col].data_type.convert_from(data)
+        res = [{col: self.columns[col].data_type.to_db(data)
                      for col, data in zip(spl, row)}
                for row in res]
 
@@ -105,28 +106,29 @@ class DBTable:
 
         updates = ', '.join(f"{col} = ?" for col in to_set)
 
-        new_vals = tuple(self.columns[col].data_type.convert_to(new_val)
+        new_vals = tuple(self.columns[col].data_type.to_db(new_val)
                          for col, new_val in to_set.items())
 
         self.con.execute(f"UPDATE {self.name} SET {updates} WHERE "
                          f"{self.primary_key} = ?", new_vals + (key,))
         self.con.commit()
 
-    def insert(self, *vals) -> sqlite3.Cursor:
-        if len(vals) == 1:
-            vals = (vals[0],) + tuple(
-                col.default for col in self.columns.values()
-                if not col.is_primary)
+    def insert(self, **vals) -> sqlite3.Cursor:
+        assert self.primary_key in vals
 
-        elif len(vals) != len(self.columns):
-            raise ValueError
+        to_ins = tuple(
+            col.data_type.to_db(x) for x, col in
+            (
+                (vals.get(key) if vals.get(key) is not None
+                 else col.default, col)
+                for key, col in self.columns.items()
+            )
+        )
 
-        vals = tuple(col.data_type.convert_to(val)
-                for col, val in zip(self.columns.values(), vals))
+        qs = "?" + ", ?" * (len(self.columns)-1)
 
-        qs = "?" + ", ?" * (len(vals)-1)
         cur = self.con.execute(f"INSERT OR IGNORE INTO {self.name} VALUES ({qs})",
-                               vals)
+                               to_ins)
         self.con.commit()
         return cur
 

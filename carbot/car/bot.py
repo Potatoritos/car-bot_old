@@ -32,7 +32,11 @@ class Bot(discord.Client):
             DBColumn('leave_message', ""),
             DBColumn('joinleave_channel', 0),
             DBColumn('pinboard_enabled', False),
-            DBColumn('pinboard_channel', 0)
+            DBColumn('pinboard_channel', 0),
+            DBColumn('modlog_enabled', False),
+            DBColumn('modlog_channel', 0),
+            DBColumn('vclog_enabled', False),
+            DBColumn('vclog_channel', 0)
         ))
 
         self.user_admin = DBTable(self.con, 'user_admin', (
@@ -48,18 +52,18 @@ class Bot(discord.Client):
         if msg.author.bot:
             return
 
-        if msg.author.id not in self.user_admin:
-            self.user_admin.insert(msg.author.id)
+        # if msg.author.id not in self.user_admin:
+            # self.user_admin.insert(msg.author.id)
 
-        if self.user_admin.select('clearance', 'where user_id=?',
-                                  (msg.author.id,)) <= ClearanceLevel.BANNED:
-            return
+        # if self.user_admin.select('clearance', 'where user_id=?',
+                                  # (msg.author.id,)) <= ClearanceLevel.BANNED:
+            # return
 
         if msg.guild is None:
             prefix = "]"
         else:
             if msg.guild.id not in self.guild_settings:
-                self.guild_settings.insert(msg.guild.id)
+                self.guild_settings.insert(guild_id=msg.guild.id)
 
             prefix = self.guild_settings.select('prefix', 'where guild_id=?',
                                                 (msg.guild.id,))
