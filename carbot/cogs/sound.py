@@ -40,8 +40,6 @@ class CustomAudioSource(discord.AudioSource):
         if data:
             self.count_20ms += 1
 
-        # print(f"{self.progress_seconds=}")
-
         return data
 
     def is_opus(self) -> bool:
@@ -71,8 +69,6 @@ class SFXSession:
     @volume.setter
     def volume(self, value: float):
         self._volume = value
-
-        print(self._volume)
 
         if self.vc_is_playing():
             self._vc.source = discord.PCMVolumeTransformer(
