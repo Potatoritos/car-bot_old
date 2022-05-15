@@ -143,7 +143,7 @@ class SFXSession:
 
     def stop(self) -> None:
         if self.vc_is_playing():
-            self.stopped = True
+            self._stopped = True
             self._vc.stop()
 
     def after(self, error) -> None:
@@ -169,7 +169,7 @@ class SFXSession:
     def play(self, sound, *, vc=None, volume=None, repeat=None,
              start_seconds=0, speed=None) -> None:
         self._sound = sound
-        self.stopped = False
+        self._stopped = False
 
         if vc is not None:
             self._vc = vc
@@ -792,6 +792,7 @@ class Sound(car.Cog):
 
     @car.mixed_command(slash_name="sfx stop")
     async def sfxstop(self, ctx):
+        """Stops the currently playing sound effect"""
         if ctx.guild.id not in self.sessions \
                 or not self.sessions[ctx.guild.id].vc_is_playing():
             raise car.CommandError("I'm not playing anything right now!")
@@ -899,6 +900,7 @@ class Sound(car.Cog):
     @car.requires_clearance(car.ClearanceLevel.ADMIN)
     async def sfxmanuadd(self, ctx, name: str, category: str, path: str,
                          user_id: Optional[int] = None):
+        """Manually adds a sound effect"""
         match path.split('.')[-1]:
             case 'mp3':
                 length = mutagen.mp3.MP3(path).info.length
