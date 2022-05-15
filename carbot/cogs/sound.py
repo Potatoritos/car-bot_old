@@ -23,6 +23,8 @@ class CustomAudioSource(discord.AudioSource):
             before_opts = f"-ss {self._start_seconds}"
 
         opts = None
+
+        # for some reason, speed=4 has a 5% of so chance of segfaulting
         if self._speed != 1:
             if self._speed < 0.5:
                 opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}"'
@@ -535,7 +537,7 @@ class Sound(car.Cog):
                 "to view all names)"],
         repeat: Optional[bool] = False,
         volume: A[Optional[float], car.ToFloat() | car.InRange(0, 200)] = None,
-        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 4)] = None,
+        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 3)] = None,
         start_time: A[Optional[float], car.ToSeconds()] = 0,
         join_vc: A[
             Optional[bool],
@@ -588,7 +590,7 @@ class Sound(car.Cog):
 
     @car.mixed_command(slash_name="sfx speed")
     async def sfxspeed(self, ctx,
-                       speed: A[float, car.ToFloat() | car.InRange(0.25, 4)]):
+                       speed: A[float, car.ToFloat() | car.InRange(0.25, 3)]):
         """Sets audio playback speed"""
         if ctx.guild.id not in self.sessions:
             self.sessions[ctx.guild.id] = SFXSession()

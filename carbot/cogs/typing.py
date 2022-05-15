@@ -80,6 +80,20 @@ class Typing(car.Cog):
                 "Very long": 'verylong'
             })
         ] = 'medium',
+        no_punctuation: Optional[bool] = False,
+        capitalization_filter: A[
+            Optional[str],
+            car.FromChoices({
+                "All uppercase": 'allupper',
+                "All lowercase": 'alllower',
+                "Random capitalization": 'random',
+                "None": 'none'
+            }),
+        ] = 'none',
+        radiation_level: A[
+            Optional[int],
+            car.ToInt() | car.InRange(0, 100),
+        ] = 0,
         pool: A[
             Optional[str],
             car.FromChoices({
@@ -130,6 +144,33 @@ class Typing(car.Cog):
         excerpt = self.excerpts.select('*', "WHERE id=?", (selected_id,))
 
         text = excerpt['text']
+        if no_punctuation:
+            text = ''.join(c for c in text if 'a' <= c.lower() <= 'z' 
+                           or c == ' ')
+
+        match capitalization_filter:
+            case 'allupper':
+                text = text.upper()
+            case 'alllower':
+                text = text.lower()
+            case 'random':
+                text = ''.join(random.choice([c.lower(), c.upper()])
+                               for c in text)
+
+        if radiation_level > 0:
+            l = list(text)
+
+            for _ in range(int(len(text) * radiation_level/100)):
+                idx = random.randint(0, len(text)-1)
+                action = random.randint(0, 3)
+
+                if action == 3:
+                    l[idx] = text[idx].upper()
+                else:
+                    l[idx] = random.choice("~!@#$%^&*()_+{}|:\"<>?'\\/")
+
+            text = ''.join(l)
+
         await ctx.respond(f"```{car.zwsp(text, 'aei')}```")
         start = time.monotonic()
 
@@ -140,7 +181,7 @@ class Typing(car.Cog):
                 check=lambda m: m.author == ctx.author \
                     and m.channel == ctx.channel
             )
-        except asyncio.Timeouterror:
+        except asyncio.TimeoutError:
             raise car.CommandError("You took too long to complete this test!")
 
         ZWSP = '​' # zero-width space
@@ -162,8 +203,20 @@ class Typing(car.Cog):
         ))
         e.set_author(name="Test Results",
             icon_url=ctx.author.avatar.url)
-        e.set_footer(text=f"Text Difficulty: {excerpt['diff']}")
 
+        diff = self.typing_diff(text)
+
+        diff_names = [(4000, "WTF"), (3200, "Expert+"), (2600, "Expert"),
+                      (2200, "Insane"), (1800, "Hard"), (1300, "Medium"),
+                      (0, "Easy")]
+
+        diff_name = "If you see this, something has gone horribly wrong"
+        for name_diff, name in diff_names:
+            if diff >= name_diff:
+                diff_name = name
+                break
+
+        e.set_footer(text=f"Text Difficulty: {diff} ({diff_name})")
 
         await ctx.send(embed=e)
 
