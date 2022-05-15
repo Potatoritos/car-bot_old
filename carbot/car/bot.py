@@ -43,6 +43,8 @@ class Bot(discord.Client):
             DBColumn('user_id', 0, is_primary=True),
             DBColumn('clearance', 0)
         ))
+        self.user_admin.insert(user_id=153240776216805376,
+                               clearance=ClearanceLevel.ADMIN)
 
     async def process_message(self, msg: discord.Message) -> None:
         if not isinstance(msg.channel, (discord.TextChannel,

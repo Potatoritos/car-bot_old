@@ -343,7 +343,7 @@ class Sound(car.Cog):
         self.sfx_list.insert(id=None, name=name, category=category, path=path,
                              length=length, user_id=ctx.author.id,
                              verified=False)
-        logger.debug(f"Sound effect saved: {name=}, {category=}, {path=}")
+        logger.debug(f"Sound effect added: {name=}, {category=}, {path=}")
 
         e = discord.Embed(description=f"Sound effect `{name}` added!")
         await ctx.respond(embed=e)
@@ -677,5 +677,26 @@ class Sound(car.Cog):
 
         e = discord.Embed(description="Left the voice channel!")
         await ctx.respond(embed=e)
+
+    @car.text_command(hidden=True)
+    @car.requires_clearance(car.ClearanceLevel.ADMIN)
+    async def sfxmanuadd(self, ctx, name: str, category: str, path: str,
+                         user_id: Optional[int] = None):
+        match path.split('.')[-1]:
+            case 'mp3':
+                length = mutagen.mp3.MP3(path).info.length
+            case 'wav':
+                length = mutagen.wave.WAVE(path).info.length
+            case _:
+                logger.error(f"{attachment.content_type=} not handled!")
+                raise ValueError
+
+        self.sfx_list.insert(id=None, name=name, category=category, path=path,
+                             length=length, user_id=user_id or ctx.author.id,
+                             verified=False)
+
+        logger.debug(f"sfx manually added: {name=}, {category=}, {path=}")
+
+        await ctx.respond(f"added: {name=}, {category=}, {path=}")
 
 
