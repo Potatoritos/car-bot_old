@@ -191,7 +191,11 @@ class Guild(car.Cog):
         logger.info(f"sparkl changed nick: {after.nick}")
         potaterz = discord.utils.get(before.guild.members,
                                      id=168472537720815616)
-        await potaterz.edit(nick=after.nick)
+
+        if after.nick is None:
+            await potaterz.edit(nick=after.name)
+        else:
+            await potaterz.edit(nick=after.nick)
 
     @car.listener
     async def on_reaction_add(self, reaction, user):
