@@ -12,7 +12,8 @@ namespace carpp::algorithm {
 int levenshtein(const std::string& s1, const std::string& s2,
         int w_del/* = 1*/, int w_ins/* = 1*/, int w_sub/* = 1*/) {
 
-    int dp[2][s2.size()+1];
+    //int dp[2][s2.size()+1];
+    std::vector<int> dp[2] = {std::vector<int>(s2.size()+1), std::vector<int>(s2.size()+1)};
     //
     //std::array<std::array<int, s2.size()+1>, 2> dp;
     bool row = 0;
