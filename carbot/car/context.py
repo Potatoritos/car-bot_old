@@ -215,5 +215,12 @@ class TextContext(Context):
         if len(self.message.attachments) != 0:
             return self.message.attachments[0]
 
+        if self.message.reference is not None:
+            ref = await self.channel.fetch_message(
+                self.message.reference.message_id)
+
+            if len(ref.attachments) != 0:
+                return ref.attachments[0]
+
         return await super().last_attachment()
 
