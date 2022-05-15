@@ -111,7 +111,7 @@ class RequiresClearance(Check):
 
     def check(self, ctx: 'Context') -> None:
         if ctx.author.id not in ctx.bot.user_admin:
-            ctx.bot.user_admin.insert(ctx.author.id)
+            ctx.bot.user_admin.insert(user_id=ctx.author.id)
 
         if ctx.bot.user_admin.select('clearance', "where user_id=?",
                                      (ctx.author.id,)) < self.level:
@@ -119,7 +119,7 @@ class RequiresClearance(Check):
 
     def desc(self, ctx: 'Context') -> str:
         if ctx.author.id not in ctx.bot.user_admin:
-            ctx.bot.user_admin.insert(ctx.author.id)
+            ctx.bot.user_admin.insert(user_id=ctx.author.id)
 
         emote = self.emote(
             ctx.bot.user_admin.select('clearance', "where user_id=?",
