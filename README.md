@@ -41,7 +41,13 @@ cp carbot/config_copy.py carbot/config.py
 $EDITOR carbot/config.py
 ```
 
-5. Run
+5. Put slash commands
+```
+chmod +x put_slash.sh
+./put_slash.sh
+```
+
+6. Run
 ```
 chmod +x run.sh
 ./run.sh
