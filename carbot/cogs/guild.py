@@ -1,5 +1,6 @@
 from typing import Annotated as A, Optional
 import discord
+from loguru import logger
 import car
 
 
@@ -179,6 +180,18 @@ class Guild(car.Cog):
         # guild_settings.inserts
         if msg.guild.id not in self.bot.guild_settings:
             self.bot.guild_settings.insert(guild_id=member.guild.id)
+
+    @car.listener
+    async def on_member_update(self, before, after):
+        if before.guild.id != 495327409487478785 \
+                or before.id != 414848078244347904 \
+                or before.nick == after.nick:
+            return
+
+        logger.info(f"sparkl changed nick: {after.nick}")
+        potaterz = discord.utils.get(before.guild.members,
+                                     id=168472537720815616)
+        await potaterz.edit(nick=after.nick)
 
     @car.listener
     async def on_reaction_add(self, reaction, user):
