@@ -758,4 +758,3 @@ class Sound(car.Cog):
         logger.info(f"sfx manually added: {name=}, {category=}, {path=}")
         await ctx.respond(f"added: {name=}, {category=}, {path=}")
 
-
