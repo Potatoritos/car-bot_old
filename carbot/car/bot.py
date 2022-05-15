@@ -33,6 +33,7 @@ class Bot(discord.Client):
             DBColumn('joinleave_channel', 0),
             DBColumn('pinboard_enabled', False),
             DBColumn('pinboard_channel', 0),
+            DBColumn('pinboard_stars', 3),
             DBColumn('modlog_enabled', False),
             DBColumn('modlog_channel', 0),
             DBColumn('vclog_enabled', False),

@@ -2,11 +2,12 @@ import asyncio
 import os
 import sqlite3
 from typing import Annotated as A, Optional, Any
-import mutagen.mp3
-import mutagen.wave
 
 import discord
 from loguru import logger
+import mutagen.mp3
+import mutagen.wave
+import yt_dlp
 
 import car
 
@@ -270,6 +271,20 @@ class Sound(car.Cog):
             await asyncio.sleep(1)
             count_seconds += 1
 
+    def check_name(self, name: str) -> None:
+        if not all(c.isalnum() or c == '_' for c in name):
+            raise car.ArgumentError("Names must be alphanumeric! (underscores "
+                                    f"allowed)", 'name')
+
+        if len(name) > 24:
+            raise car.ArgumentError("Names must ≤ 24 characters long!",
+                                    'name')
+
+        if self.sfx_list.select('id', 'WHERE name=?', (name,),
+                                flatten=False):
+            raise car.ArgumentError("A sound effect with this name already "
+                                    "exists!")
+
     @car.slash_command_group(name="sfx")
     async def _(self, ctx): pass
 
@@ -285,13 +300,7 @@ class Sound(car.Cog):
     ):
         """Adds a sound effect (uses the most recently uploaded file)"""
         name = name.lower()
-        if not all(c.isalnum() or c == '_' for c in name):
-            raise car.ArgumentError("Names must be alphanumeric! (underscores "
-                                    f"allowed)", 'name')
-
-        if len(name) > 24:
-            raise car.ArgumentError("Names must ≤ 24 characters long!",
-                                    'name')
+        self.check_name(name)
 
         attachment = await ctx.last_attachment()
 
@@ -319,11 +328,6 @@ class Sound(car.Cog):
             i += 1
             path = f"./sfx/{name}_{i}.{file_type}"
 
-        if self.sfx_list.select('id', 'WHERE name=?', (name,),
-                                flatten=False):
-            raise car.ArgumentError("A sound effect with this name already "
-                                    "exists!")
-
         await ctx.defer()
 
         await attachment.save(path)
@@ -344,6 +348,66 @@ class Sound(car.Cog):
                              length=length, user_id=ctx.author.id,
                              verified=False)
         logger.debug(f"Sound effect added: {name=}, {category=}, {path=}")
+
+        e = discord.Embed(description=f"Sound effect `{name}` added!")
+        await ctx.respond(embed=e)
+
+    @car.mixed_command(slash_name="sfx addyt")
+    async def sfxaddyt(
+        self, ctx,
+        name: str,
+        category: A[str, car.FromChoices({
+            'Songs': 'Songs', 'Clips': 'Clips', 'Sounds': 'Sounds',
+            'Ambient': 'Ambient', 'None': 'Uncategorized'
+        })],
+        url: A[str, "the URL of the youtube video to download"]
+    ):
+        """Adds a sound effect (uses a youtube link)"""
+        if not url.startswith("https://") and not url.startswith('http://'):
+            url = "https://" + url
+
+        if not url.startswith("https://www.youtube.com/watch?v=") \
+                or len(url) > 105:
+            raise car.ArgumentError("Invalid youtube link!", 'url')
+
+        self.check_name(name)
+
+        path = f'./sfx/{name}.mp3'
+
+        i = 0
+        while os.path.exists(path):
+            i += 1
+            path = f"./sfx/{name}_{i}.mp3"
+
+        opts = {
+            'format': 'bestaudio',
+            'outtmpl': path,
+            'max_filesize': 3e8
+        }
+
+        def download():
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.add_post_processor(
+                    yt_dlp.postprocessor.FFmpegExtractAudioPP(
+                        preferredcodec='mp3'
+                    )
+                )
+                
+                try:
+                    a = ydl.download(url)
+                except yt_dlp.utils.DownloadError as e:
+                    raise car.CommandError(f"Download failed!\n\n```{e}```")
+
+        await ctx.defer()
+
+        await asyncio.to_thread(download)
+
+        length = mutagen.mp3.MP3(path).info.length
+
+        self.sfx_list.insert(id=None, name=name, category=category, path=path,
+                             length=length, user_id=ctx.author.id,
+                             verified=False)
+        logger.debug(f"Sound effect added (yt): {name=}, {category=}, {path=}")
 
         e = discord.Embed(description=f"Sound effect `{name}` added!")
         await ctx.respond(embed=e)

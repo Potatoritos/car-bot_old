@@ -6,6 +6,10 @@ import car
 class Guild(car.Cog):
     category = "Server"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reacted_msgs = {}
+
     @car.mixed_command(aliases=("set", "config", "conf"))
     @car.guild_only()
     @car.requires_permissions(manage_guild=True)
@@ -28,6 +32,7 @@ class Guild(car.Cog):
         joinleave_channel: Optional[discord.TextChannel] = None,
         pinboard_enabled: Optional[bool] = None,
         pinboard_channel: Optional[discord.TextChannel] = None,
+        pinboard_stars: Optional[int] = None,
         modlog_enabled: Optional[bool] = None,
         modlog_channel: Optional[discord.TextChannel] = None,
         vclog_enabled: Optional[bool] = None,
@@ -81,6 +86,9 @@ class Guild(car.Cog):
                               id=r['pinboard_channel'])
         e.add_field(name="pinboard_channel",
                     value="*(None)*" if c is None else c.mention,
+                    inline=False)
+        e.add_field(name="pinboard_stars",
+                    value=r['pinboard_stars'],
                     inline=False)
 
         e.add_field(name="modlog_enabled",
@@ -164,4 +172,65 @@ class Guild(car.Cog):
 
         allowed = discord.AllowedMentions(everyone=False, roles=False)
         await c.send(farewell, allowed_mentions=allowed)
+
+    @car.listener
+    async def on_guild_join(self, guild):
+        # TODO: check all guilds at start and remove all other
+        # guild_settings.inserts
+        if msg.guild.id not in self.bot.guild_settings:
+            self.bot.guild_settings.insert(guild_id=member.guild.id)
+
+    @car.listener
+    async def on_reaction_add(self, reaction, user):
+        msg = reaction.message
+
+        if msg.guild.id not in self.bot.guild_settings:
+            self.bot.guild_settings.insert(guild_id=member.guild.id)
+
+        cfg = self.bot.guild_settings.select(
+            'pinboard_enabled, pinboard_channel, pinboard_stars',
+            'WHERE guild_id=?', (msg.author.guild.id,)
+        )
+
+        if not cfg['pinboard_enabled'] \
+                or reaction.count < cfg['pinboard_stars'] \
+                or msg.id in self.reacted_msgs:
+            return
+
+        if msg.id in self.reacted_msgs:
+            m = self.reacted_msgs[msg.id]
+            if not m.content.split(' ')[-1] == f"**x{reaction.count}**":
+                await m.edit(
+                    content=f"{m.content.split(' ')[0]} **x{reaction.count}**"
+                )
+            return
+
+        self.reacted_msgs[msg.id] = True # until the pinboard msg is sent
+
+        channel = discord.utils.get(msg.guild.channels,
+                                    id=cfg['pinboard_channel'])
+
+        if channel is None:
+            return
+
+        desc = (f"[[Jump]]({msg.jump_url}) {msg.author.mention} in"
+                f"{msg.channel.mention}\n\n{msg.content}")
+
+        e = discord.Embed(description=desc)
+        if len(msg.attachments) > 0:
+            e.set_image(url=msg.attachments[0].url)
+            e.add_field(
+                name="Attachments",
+                value='\n'.join(f"[{a.filename}]({a.url})"
+                                for a in msg.attachments)
+            )
+
+        e.set_author(
+            name=f"{msg.author.name}#{msg.author.discriminator}",
+            icon_url=msg.author.avatar.url
+        )
+
+        m = await channel.send(f"{reaction.emoji} **x{reaction.count}**",
+                               embed=e)
+        self.reacted_msgs[msg.id] = m
 

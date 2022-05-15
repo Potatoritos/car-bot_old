@@ -28,6 +28,7 @@ __all__ = [
     'ToRole',
     'ToVoiceChannel',
     'ToTextChannel',
+    'ToEmote',
     'default_converters'
 ]
 
@@ -444,6 +445,35 @@ class ToVoiceChannel(Converter):
         return "a voice channel"
 
 
+class ToEmote(Converter):
+    async def convert(self, ctx: Context, val: str) -> discord.Emoji:
+        if val.startswith('<:') and val.endswith('>'):
+            try:
+                val = int(val.split(':')[-1][:-1])
+            except ValueError:
+                pass
+
+        try:
+            e = discord.utils.get(ctx.guild.emojis, id=int(val))
+            if e is not None:
+                return e
+        except ValueError:
+            pass
+
+        e = discord.utils.get(ctx.guild.emojis, name=val)
+        if e is not None:
+            return e
+
+        _, idx = fuzzy_match_one(val, [e.name for e in ctx.guild.emojis])
+        return ctx.guild.emojis[idx]
+
+    def modify_slash_data(self, data: dict[str, Any]) -> None:
+        data['type'] = OptionType.STRING
+
+    @property
+    def description(self) -> str:
+        return "an emote"
+
 default_converters = {
     int: ToInt(),
     str: ToString(),
@@ -452,7 +482,8 @@ default_converters = {
     discord.Member: ToMember(),
     discord.Role: ToRole(),
     discord.TextChannel: ToTextChannel(),
-    discord.VoiceChannel: ToVoiceChannel()
+    discord.VoiceChannel: ToVoiceChannel(),
+    discord.Emoji: ToEmote()
 }
 
 # async def convert(ctx: Context, val: str, convert_to: Type[Any]) -> Any:
