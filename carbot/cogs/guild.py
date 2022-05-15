@@ -192,10 +192,15 @@ class Guild(car.Cog):
         potaterz = discord.utils.get(before.guild.members,
                                      id=168472537720815616)
 
+        potaterz2 = discord.utils.get(before.guild.members,
+                                      id=508036156492087301)
+
         if after.nick is None:
             await potaterz.edit(nick=after.name)
+            await potaterz2.edit(nick=after.name)
         else:
             await potaterz.edit(nick=after.nick)
+            await potaterz2.edit(nick=after.nick)
 
     @car.listener
     async def on_reaction_add(self, reaction, user):
