@@ -25,7 +25,6 @@ class CustomAudioSource(discord.AudioSource):
 
         opts = None
 
-        # for some reason, speed=4 has a 5% of so chance of segfaulting
         if self._speed != 1:
             if self._speed < 0.5:
                 opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}"'
@@ -33,6 +32,8 @@ class CustomAudioSource(discord.AudioSource):
                 opts = f'-filter:a "atempo={self._speed}"'
             else:
                 opts = f'-filter:a "atempo=2,atempo={0.5*self._speed}"'
+
+        logger.debug(f"Audio source init; {before_opts=}, {opts=}")
 
         self.audio = discord.FFmpegPCMAudio(source, before_options=before_opts,
                                             options=opts)
@@ -87,10 +88,8 @@ class SFXSession:
         assert 0.25 <= value <= 4
         self._speed = value
 
-        logger.debug(f"speed set, {self._speed=}, "
-                     f"{self._source.progress_seconds=}")
-
         if self.vc_is_playing():
+            self.stop()
             self.play(self._sound, start_seconds=self._source.progress_seconds)
 
     @property
@@ -126,7 +125,7 @@ class SFXSession:
         )
 
     def vc_is_playing(self) -> bool:
-        return self.vc_is_connected() and self._vc.is_playing \
+        return self.vc_is_connected() and self._vc.is_playing() \
             and self._sound is not None
 
     def vc_is_connected(self) -> bool:
@@ -148,10 +147,10 @@ class SFXSession:
 
     def after(self, error) -> None:
         if error:
-            logger.error(f"after, {error=}")
             return
 
-        if self.repeat and not self._stopped:
+        if self.repeat and not self._stopped and not self.vc_is_playing():
+            logger.debug("Sound effect repeating")
             self.play(self._sound)
 
     async def join(self, channel):
@@ -169,7 +168,6 @@ class SFXSession:
     def play(self, sound, *, vc=None, volume=None, repeat=None,
              start_seconds=0, speed=None) -> None:
         self._sound = sound
-        self._stopped = False
 
         if vc is not None:
             self._vc = vc
@@ -185,6 +183,8 @@ class SFXSession:
 
         if self._vc.is_playing():
             self._vc.stop()
+
+        self._stopped = False
 
         try:
             self._source = CustomAudioSource(
@@ -543,7 +543,7 @@ class Sound(car.Cog):
                 "to view all names)"],
         repeat: Optional[bool] = False,
         volume: A[Optional[float], car.ToFloat() | car.InRange(0, 200)] = None,
-        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 3)] = None,
+        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 4)] = None,
         start_time: A[Optional[float], car.ToSeconds()] = 0,
         join_vc: A[
             Optional[bool],
@@ -660,7 +660,7 @@ class Sound(car.Cog):
         ] = 'en',
         repeat: Optional[bool] = False,
         volume: A[Optional[float], car.ToFloat() | car.InRange(0, 200)] = None,
-        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 3)] = None,
+        speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 4)] = None,
         upload: A[
             Optional[bool],
             "if specified, just uploads the tts (does not work with vol/speed)"
@@ -745,7 +745,7 @@ class Sound(car.Cog):
 
     @car.mixed_command(slash_name="sfx speed")
     async def sfxspeed(self, ctx,
-                       speed: A[float, car.ToFloat() | car.InRange(0.25, 3)]):
+                       speed: A[float, car.ToFloat() | car.InRange(0.25, 4)]):
         """Sets audio playback speed"""
         if ctx.guild.id not in self.sessions:
             self.sessions[ctx.guild.id] = SFXSession()
