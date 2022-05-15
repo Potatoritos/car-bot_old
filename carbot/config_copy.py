@@ -1,15 +1,16 @@
 import cogs
 
+
 cogs_to_load = (
     cogs.Admin,
     cogs.Guild,
     cogs.Image,
     cogs.Meta,
     cogs.Simulation,
+    cogs.Sound,
     cogs.Text,
-    cogs.TestCog,
     cogs.Utility,
-    cogs.Wab
+    cogs.Wab,
 )
 
 TOKEN = "Insert token here"
