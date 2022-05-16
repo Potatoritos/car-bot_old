@@ -1,6 +1,10 @@
+import os
 import time
 from typing import Annotated as A, Optional, Union
+
 import discord
+import psutil
+
 import car
 
 
@@ -10,20 +14,28 @@ class Meta(car.Cog):
     def cmdlist_embed(self, ctx: car.Context,
                       commands: Union[dict[str, car.SlashCommand],
                                       dict[str, car.TextCommand]],
-                      sep: bool = False, **embed_kwargs) -> discord.Embed:
+                      sep: bool = False,
+                      view_hidden: bool = False,
+                      **embed_kwargs) -> discord.Embed:
         categories: dict[str, list[str]] = {}
 
         for name, cmd in sorted(commands.items()):
             if cmd.guild_id is not None and cmd.guild_id != ctx.guild.id:
                 continue
             if cmd.hidden:
-                continue
+                if not view_hidden:
+                    continue
+
+                name = f"({name})"
 
             n = f"`{name}`"
             try:
                 cmd.run_checks(ctx)
             except car.CheckError:
                 n = f"~~`{name}`~~"
+
+            if cmd.hidden:
+                n = f"*{n}*"
 
             if cmd.category not in categories:
                 categories[cmd.category] = []
@@ -36,7 +48,7 @@ class Meta(car.Cog):
         if sep:
             en_space = f",{en_space}"
 
-        for name, cmds in categories.items():
+        for name, cmds in sorted(categories.items()):
             e.add_field(
                 name=name,
                 value=en_space.join(cmds),
@@ -51,6 +63,16 @@ class Meta(car.Cog):
 
         e.add_field(name="Usage", value=cmd.usage(prefix=ctx.prefix),
                     inline=False)
+
+        if isinstance(cmd, car.SlashCommand) and len(cmd.subcommands) > 0:
+            no_break_space = '\u00A0'
+            en_space = '\u2002'
+
+            e.add_field(name="Subcommands",
+                        value=en_space.join(
+                            f"`{c.name.replace(' ', no_break_space)}`"
+                            for c in cmd.subcommands
+                        ))
 
         if isinstance(cmd, car.TextCommand) and len(cmd.aliases) > 0:
             e.add_field(name="Aliases",
@@ -73,7 +95,8 @@ class Meta(car.Cog):
             Optional[str],
             ("the name of a text command; if unspecified, returns the text "
              "command list")
-        ] = None
+        ] = None,
+        view_hidden: Optional[bool] = False
     ):
         """Views text command help / displays the usage of a text command"""
         if command is None:
@@ -87,7 +110,7 @@ class Meta(car.Cog):
             )
             await ctx.respond(embed=self.cmdlist_embed(
                 ctx, self.bot.cog_handler.text_commands,
-                title=title, description=desc
+                title=title, description=desc, view_hidden=view_hidden
             ))
             return
 
@@ -99,6 +122,7 @@ class Meta(car.Cog):
         await ctx.respond(embed=self.cmdhelp_embed(
                 ctx, cmd, f"Text command: {cmd.name}"))
 
+
     @car.mixed_command(text_name="help_slash", slash_name="help")
     async def slash_help(
         self,
@@ -107,7 +131,8 @@ class Meta(car.Cog):
             Optional[str],
             ("the name of a slash command; if unspecified, returns the slash "
              "command list")
-        ] = None
+        ] = None,
+        view_hidden: Optional[bool] = False
     ):
         """Views slash command help / displays the usage of a slash command"""
         if command is None:
@@ -119,7 +144,8 @@ class Meta(car.Cog):
             )
             await ctx.respond(embed=self.cmdlist_embed(
                 ctx, self.bot.cog_handler.slash_commands,
-                sep=True, title=title, description=desc
+                sep=True, title=title, description=desc,
+                view_hidden=view_hidden
             ))
             return
 
@@ -150,4 +176,15 @@ class Meta(car.Cog):
 
         await ctx.edit_response(embed=discord.Embed(description=p))
 
+    @car.mixed_command()
+    async def info(self, ctx):
+        """Views bot technical info"""
+        e = discord.Embed(title="Info")
+        e.description = (
+            f"Running [carbot {car.__version__}]"
+            "(https://github.com/potatoritos/car-bot)"
+        )
+        mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
+        e.add_field(name="Memory usage", value=f"{mem_mb:.2f}MB")
+        await ctx.respond(embed=e)
 

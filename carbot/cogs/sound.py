@@ -125,8 +125,10 @@ class SFXSession:
         )
 
     def vc_is_playing(self) -> bool:
-        return self.vc_is_connected() and self._vc.is_playing() \
-            and self._sound is not None
+        return self.vc_has_played() and self._vc.is_playing()
+
+    def vc_has_played(self) -> bool:
+        return self.vc_is_connected() and self._sound is not None
 
     def vc_is_connected(self) -> bool:
         return self._vc is not None and self._vc.is_connected()
@@ -759,7 +761,7 @@ class Sound(car.Cog):
     async def sfxseek(self, ctx, timestamp: A[float, car.ToSeconds()]):
         """Skips to a timestamp"""
         if ctx.guild.id not in self.sessions \
-                or not self.sessions[ctx.guild.id].vc_is_playing():
+                or not self.sessions[ctx.guild.id].vc_has_played():
             raise car.CommandError("I'm not playing anything right now!")
 
         sesh = self.sessions[ctx.guild.id]
@@ -784,7 +786,7 @@ class Sound(car.Cog):
     async def sfxstatus(self, ctx):
         """Displays the currently playing sound effect's status"""
         if ctx.guild.id not in self.sessions \
-                or not self.sessions[ctx.guild.id].vc_is_playing():
+                or not self.sessions[ctx.guild.id].vc_has_played():
             raise car.CommandError("I'm not playing anything right now!")
 
         desc = f":musical_note: " + self.sessions[ctx.guild.id].status_desc
@@ -826,7 +828,7 @@ class Sound(car.Cog):
     async def sfxresume(self, ctx):
         """Resumes the currently paused sound"""
         if ctx.guild.id not in self.sessions \
-                or not self.sessions[ctx.guild.id].vc_is_playing():
+                or not self.sessions[ctx.guild.id].vc_has_played():
             raise car.CommandError("I'm not playing anything right now!")
 
         sesh = self.sessions[ctx.guild.id]
@@ -842,7 +844,7 @@ class Sound(car.Cog):
     async def sfxpause(self, ctx):
         """Pauses the currently playing sound"""
         if ctx.guild.id not in self.sessions \
-                or not self.sessions[ctx.guild.id].vc_is_playing():
+                or not self.sessions[ctx.guild.id].vc_has_played():
             raise car.CommandError("I'm not playing anything right now!")
 
         sesh = self.sessions[ctx.guild.id]

@@ -72,6 +72,8 @@ class CogHandler:
         self.load_cog(cog_name)
 
     def _load_text_command(self, cmd: TextCommand) -> None:
+        logger.debug(f"Loading text command {cmd}")
+
         if cmd.name in self.text_commands or cmd.name in self.text_aliases:
             raise CogError(f"Duplicate command name! {cmd}")
 
@@ -89,6 +91,7 @@ class CogHandler:
 
     def _load_slash_command(self, cmd: SlashCommand) -> None:
         logger.debug(f"Loading slash command {cmd}")
+
         if cmd.name in self.slash_commands:
             raise CogError(f"Duplicate command name! {cmd}")
         self.slash_commands[cmd.name] = cmd

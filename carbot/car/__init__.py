@@ -14,3 +14,6 @@ from .listener import *
 from .tokenizer import *
 from .util import *
 
+
+__version__ = "2.1.10"
+

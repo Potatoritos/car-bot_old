@@ -225,7 +225,7 @@ class Typing(car.Cog):
     # async def add_excerpt(self, ctx, text: str):
         # self.excerpts.
 
-    @car.text_command(category="Hidden")
+    @car.text_command(hidden=True)
     @car.requires_clearance(car.ClearanceLevel.ADMIN)
     async def load_typeracer_excerpts(self, ctx):
         """Receives excerpts from typeracer.com"""
