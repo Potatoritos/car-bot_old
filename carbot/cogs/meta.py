@@ -185,9 +185,11 @@ class Meta(car.Cog):
         repo = git.Repo(search_parent_directories=True)
         sha = repo.head.object.hexsha
 
+        commit_link = f"https://github.com/Potatoritos/car-bot/commit/{sha}"
+
         e.description = (
             f"Running [carbot](https://github.com/potatoritos/car-bot) "
-            f"on commit `{sha[:7]}`"
+            f"on commit [`{sha[:7]}`]({commit_link})"
         )
         mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
         e.add_field(name="Memory usage", value=f"{mem_mb:.2f}MB")
