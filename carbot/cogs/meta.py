@@ -3,6 +3,7 @@ import time
 from typing import Annotated as A, Optional, Union
 
 import discord
+import git
 import psutil
 
 import car
@@ -180,9 +181,13 @@ class Meta(car.Cog):
     async def info(self, ctx):
         """Views bot technical info"""
         e = discord.Embed(title="Info")
+
+        repo = git.Repo(search_parent_directories=True)
+        sha = repo.head.object.hexsha
+
         e.description = (
-            f"Running [carbot {car.__version__}]"
-            "(https://github.com/potatoritos/car-bot)"
+            f"Running [carbot](https://github.com/potatoritos/car-bot) "
+            f"on commit `{sha[:7]}`"
         )
         mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2
         e.add_field(name="Memory usage", value=f"{mem_mb:.2f}MB")
