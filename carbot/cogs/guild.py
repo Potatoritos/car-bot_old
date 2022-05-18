@@ -9,7 +9,6 @@ class Guild(car.Cog):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.reacted_msgs = {}
 
     @car.mixed_command(aliases=("set", "config", "conf"))
     @car.guild_only()
