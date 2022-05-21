@@ -89,7 +89,8 @@ class Pinboard(car.Cog):
         # await ctx.send("scanning done")
 
     async def pin_message(self, cfg, reaction, msg):
-        if msg.id in self.reacted_msgs:
+        if msg.id in self.reacted_msgs \
+                and not isinstance(self.reacted_msgs, bool):
             m = self.reacted_msgs[msg.id]
             if not m.content.split(' ')[-1] == f"**x{reaction.count}**":
                 await m.edit(

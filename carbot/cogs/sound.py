@@ -186,8 +186,6 @@ class SFXSession:
         if self._vc.is_playing():
             self._vc.stop()
 
-        self._stopped = False
-
         try:
             self._source = CustomAudioSource(
                 self._sound['path'], start_seconds=start_seconds,
@@ -203,6 +201,8 @@ class SFXSession:
         if self._volume != 100:
             self._vc.source = discord.PCMVolumeTransformer(
                 self._source, volume=self._volume*0.01)
+
+        self._stopped = False
 
 class Sound(car.Cog):
     category = "Sound"
