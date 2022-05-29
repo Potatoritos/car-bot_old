@@ -15,23 +15,37 @@ import car
 
 class CustomAudioSource(discord.AudioSource):
     def __init__(self, source: str, *, start_seconds: float = 0,
-                 speed: float = 1):
+                 speed: float = 1, bass_boost: float = 0,
+                 treble_boost: float = 0):
         self._start_seconds = start_seconds
         self._speed = speed
+        self._bass_boost = bass_boost
+        self._treble_boost = treble_boost
 
         before_opts = None
         if self._start_seconds > 0:
             before_opts = f"-ss {self._start_seconds}"
 
-        opts = None
+        opts = ''
 
         if self._speed != 1:
             if self._speed < 0.5:
-                opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}"'
+                opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}" '
             elif self._speed <= 2:
-                opts = f'-filter:a "atempo={self._speed}"'
+                opts = f'-filter:a "atempo={self._speed}" '
             else:
-                opts = f'-filter:a "atempo=2,atempo={0.5*self._speed}"'
+                opts = f'-filter:a "atempo=2,atempo={0.5*self._speed}" '
+
+        af = []
+
+        if self._bass_boost != 0:
+            af.append(f"bass=g={bass_boost}")
+
+        if self._treble_boost != 0:
+            af.append(f"treble=g={treble_boost}")
+
+        if af:
+            opts += f"-af \"{','.join(af)}\""
 
         logger.debug(f"Audio source init; {before_opts=}, {opts=}")
 
@@ -58,6 +72,8 @@ class SFXSession:
     def __init__(self):
         self._volume = 100.0
         self._speed = 1.0
+        self._bass_boost = 0
+        self._treble_boost = 0
         self._sound = None
         self._source = None
         self._vc = None
@@ -87,6 +103,32 @@ class SFXSession:
     def speed(self, value: float):
         assert 0.25 <= value <= 4
         self._speed = value
+
+        if self.vc_is_playing():
+            self.stop()
+            self.play(self._sound, start_seconds=self._source.progress_seconds)
+
+    @property
+    def bass_boost(self):
+        return self.bass_boost
+
+    @bass_boost.setter
+    def bass_boost(self, value: float):
+        assert -50 <= value <= 50
+        self._bass_boost = value
+
+        if self.vc_is_playing():
+            self.stop()
+            self.play(self._sound, start_seconds=self._source.progress_seconds)
+
+    @property
+    def treble_boost(self):
+        return self._speed
+
+    @speed.setter
+    def treble_boost(self, value: float):
+        assert -50 <= value <= 50
+        self._treble_boost = value
 
         if self.vc_is_playing():
             self.stop()
@@ -168,7 +210,8 @@ class SFXSession:
         await self._vc.disconnect()
 
     def play(self, sound, *, vc=None, volume=None, repeat=None,
-             start_seconds=0, speed=None) -> None:
+             start_seconds=0, speed=None, bass_boost=None,
+             treble_boost=None) -> None:
         self._sound = sound
 
         if vc is not None:
@@ -183,13 +226,20 @@ class SFXSession:
         if speed is not None:
             self._speed = speed
 
+        if bass_boost is not None:
+            self._bass_boost = bass_boost
+
+        if treble_boost is not None:
+            self._treble_boost = bass_boost
+
         if self._vc.is_playing():
             self._vc.stop()
 
         try:
             self._source = CustomAudioSource(
                 self._sound['path'], start_seconds=start_seconds,
-                speed=self._speed
+                speed=self._speed, bass_boost=self._bass_boost,
+                treble_boost=self._treble_boost
             )
 
         except IOError:
@@ -743,6 +793,32 @@ class Sound(car.Cog):
 
         e = discord.Embed(
             description=f":musical_note: Volume set to {volume}%!")
+        await ctx.respond(embed=e)
+
+    @car.mixed_command(slash_name="sfx bassboost")
+    async def sfxbassboost(self, ctx,
+                       boost: A[float, car.ToFloat() | car.InRange(-50, 50)]):
+        """Sets audio bass boost"""
+        if ctx.guild.id not in self.sessions:
+            self.sessions[ctx.guild.id] = SFXSession()
+
+        self.sessions[ctx.guild.id].bass_boost = boost
+
+        e = discord.Embed(
+            description=f":musical_note: Set bass boost to {boost}!")
+        await ctx.respond(embed=e)
+
+    @car.mixed_command(slash_name="sfx trebleboost")
+    async def sfxtrebleboost(self, ctx,
+                       boost: A[float, car.ToFloat() | car.InRange(-50, 50)]):
+        """Sets audio treble boost"""
+        if ctx.guild.id not in self.sessions:
+            self.sessions[ctx.guild.id] = SFXSession()
+
+        self.sessions[ctx.guild.id].treble_boost = boost
+
+        e = discord.Embed(
+            description=f":musical_note: Set treble boost to {boost}!")
         await ctx.respond(embed=e)
 
     @car.mixed_command(slash_name="sfx speed")
