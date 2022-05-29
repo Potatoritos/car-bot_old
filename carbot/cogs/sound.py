@@ -598,6 +598,12 @@ class Sound(car.Cog):
         repeat: Optional[bool] = False,
         volume: A[Optional[float], car.ToFloat() | car.InRange(0, 200)] = None,
         speed: A[Optional[float], car.ToFloat() | car.InRange(0.25, 4)] = None,
+        bass_boost: A[
+            Optional[float], car.ToFloat() | car.InRange(-50, 50)
+        ] = None,
+        treble_boost: A[
+            Optional[float], car.ToFloat() | car.InRange(-50, 50)
+        ] = None,
         start_time: A[Optional[float], car.ToSeconds()] = 0,
         join_vc: A[
             Optional[bool],
@@ -628,7 +634,8 @@ class Sound(car.Cog):
         sesh = self.sessions[ctx.guild.id]
 
         sesh.play(sound, vc=vc, volume=volume, repeat=repeat, speed=speed,
-                  start_seconds=start_time)
+                  start_seconds=start_time, bass_boost=bass_boost,
+                  treble_boost=treble_boost)
 
         desc = (
             f":musical_note: Playing sound: `{name}` [volume: {sesh.volume}%] "
