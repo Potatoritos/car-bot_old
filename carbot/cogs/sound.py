@@ -27,16 +27,18 @@ class CustomAudioSource(discord.AudioSource):
             before_opts = f"-ss {self._start_seconds}"
 
         opts = ''
+        af = []
 
         if self._speed != 1:
             if self._speed < 0.5:
-                opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}" '
+                # opts = f'-filter:a "atempo=0.5,atempo={2*self._speed}" '
+                af.append(f"atempo=0.5,atempo={2*self._speed}")
             elif self._speed <= 2:
-                opts = f'-filter:a "atempo={self._speed}" '
+                # opts = f'-filter:a "atempo={self._speed}" '
+                af.append(f"atempo={self._speed}")
             else:
-                opts = f'-filter:a "atempo=2,atempo={0.5*self._speed}" '
-
-        af = []
+                # opts = f'-filter:a "atempo=2,atempo={0.5*self._speed}" '
+                af.append(f"atempo=2,atempo={0.5*self._speed}")
 
         if self._bass_boost != 0:
             af.append(f"bass=g={bass_boost}")
