@@ -20,7 +20,9 @@ class Bot(discord.Client):
         intents.members = True
         super().__init__(intents=intents, *args, **kwargs)
 
-        self.cog_handler = CogHandler(self)
+        self.debug: bool = kwargs.get('debug', False)
+
+        self.cog_handler = CogHandler(self, debug=self.debug)
 
         self.con = sqlite3.connect('car.db')
         self.guild_settings = DBTable(self.con, 'guild_settings', (

@@ -22,7 +22,7 @@ __all__ = [
 
 
 class CogHandler:
-    def __init__(self, bot: 'Bot'):
+    def __init__(self, bot: 'Bot', *, debug=False):
         self.cog_classes: dict[str, Type[Cog]] = {}
         self.cogs: dict[str, Cog] = {}
         self.slash_commands: dict[str, SlashCommand] = {}
@@ -31,6 +31,9 @@ class CogHandler:
         self.listeners: dict[str, dict[str, Listener]] = {}
 
         self.bot = bot
+        self.debug = debug
+
+        logger.info(f"CogHandler initialized; {debug=}")
 
     def add_cog_class(self, cog: Type[Cog]) -> None:
         if cog.__name__ in self.cog_classes:
@@ -134,8 +137,12 @@ class CogHandler:
         cmd_list = self.slash_commands_json()
         GUILD_ID = 495327409487478785
 
-        url = ("https://discord.com/api/v8/applications/"
-               f"{app_id}/guilds/{GUILD_ID}/commands")
+        if self.debug:
+            url = ("https://discord.com/api/v8/applications/"
+                   f"{app_id}/guilds/{GUILD_ID}/commands")
+        else:
+            url = f"https://discord.com/api/v8/applications/{app_id}/commands"
+
         headers = {"Authorization": f"Bot {token}"}
 
         logger.info("Sending slash command list to discord...")

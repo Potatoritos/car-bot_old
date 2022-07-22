@@ -9,7 +9,7 @@ import config
 def main():
     logger.remove()
     logger.add(sys.stderr, level="DEBUG" if config.DEBUG else "INFO")
-    bot = car.Bot()
+    bot = car.Bot(debug=config.DEBUG)
 
     for cog_cls in cogs.to_load:
         bot.cog_handler.add_cog_class(cog_cls)
